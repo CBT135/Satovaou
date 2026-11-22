@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Satovaou – transports en commun autour de Satolas-et-Bonce</title>
+  <meta name="description" content="Recherche d'itinéraires en transports en commun depuis et vers Satolas-et-Bonce (bus, cars, TER, TAD, Rhônexpress, TGV, autocars).">
+  <meta name="theme-color" content="#1d4f91">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Satovaou">
+  <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="app">
+    <aside id="panel" aria-label="Recherche d'itinéraire">
+      <header>
+        <h1>Satovaou</h1>
+        <p class="tagline">Transports en commun depuis et vers Satolas-et-Bonce</p>
+      </header>
+
+      <form id="search" autocomplete="off">
+        <div class="places">
+          <div class="place">
+            <label for="from">Départ</label>
+            <div class="row">
+              <span class="dot dot-a">A</span>
+              <input id="from" type="text" placeholder="Adresse, ou cliquer sur la carte" enterkeyhint="search">
+              <button type="button" class="icon pick" data-target="from" title="Placer le départ sur la carte" aria-label="Placer le départ sur la carte">⌖</button>
+            </div>
+            <ul class="suggest" id="from-suggest" role="listbox"></ul>
+          </div>
+          <button type="button" id="swap" class="swap" title="Inverser départ et arrivée" aria-label="Inverser départ et arrivée">⇅</button>
+          <div class="place">
+            <label for="to">Arrivée</label>
+            <div class="row">
+              <span class="dot dot-b">B</span>
+              <input id="to" type="text" placeholder="Adresse, ou cliquer sur la carte" enterkeyhint="search">
+              <button type="button" class="icon pick" data-target="to" title="Placer l'arrivée sur la carte" aria-label="Placer l'arrivée sur la carte">⌖</button>
+            </div>
+            <ul class="suggest" id="to-suggest" role="listbox"></ul>
+          </div>
+        </div>
+        <div class="quick">
+          <button type="button" data-preset="satolas">Satolas-et-Bonce (mairie)</button>
+          <button type="button" data-preset="aeroport">Aéroport</button>
+          <button type="button" data-preset="partdieu">Lyon Part-Dieu</button>
+          <button type="button" data-preset="grenoble">Grenoble</button>
+        </div>
+
+        <div class="when">
+          <select id="mode" aria-label="Type d'horaire">
+            <option value="depart">Partir à</option>
+            <option value="arrive">Arriver avant</option>
+          </select>
+          <input id="date" type="date" aria-label="Jour">
+          <input id="time" type="time" aria-label="Heure" step="300">
+        </div>
+
+        <div class="options">
+          <label>Voyageur
+            <select id="profile"></select>
+          </label>
+          <label>Tri
+            <select id="sort">
+              <option value="arrive">Arrivée la plus tôt</option>
+              <option value="duration">Durée la plus courte</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="toggles">
+          <button type="button" id="youth" class="toggle" aria-pressed="false" title="Ajoute les lignes scolaires (réservées aux élèves inscrits)">🎒 Réservé aux jeunes (transport scolaire)</button>
+          <p id="school-note" class="note" hidden></p>
+        </div>
+
+        <button type="submit" class="go">Rechercher</button>
+      </form>
+
+      <div id="status" class="status" role="status"></div>
+      <ol id="results" class="results"></ol>
+
+      <details class="layers">
+        <summary>Réseaux et arrêts affichés</summary>
+        <label class="chk"><input type="checkbox" id="show-stops" checked> Afficher les arrêts</label>
+        <div id="feed-list"></div>
+        <p class="small" id="data-info"></p>
+      </details>
+
+      <footer class="small">
+        Horaires : GTFS publiés sur <a href="https://transport.data.gouv.fr" target="_blank" rel="noopener">transport.data.gouv.fr</a>
+        (licence ODbL). Fonds de carte © <a href="https://geoservices.ign.fr" target="_blank" rel="noopener">IGN – Géoplateforme</a>.
+        Coûts et durées indicatifs : vérifiez auprès des transporteurs, en particulier pour le transport à la demande (réservation obligatoire).
+      </footer>
+    </aside>
+
+    <main id="map" aria-label="Carte"></main>
+    <div id="pick-hint" class="pick-hint" hidden></div>
+  </div>
+
+  <script src="vendor/leaflet/leaflet.js"></script>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

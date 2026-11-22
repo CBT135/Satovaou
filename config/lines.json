@@ -1,0 +1,305 @@
+{
+  "_doc": "Configuration des réseaux et lignes repris du tableau « Transports en commun – Satolas-et-Bonce et alentours ». Les noms de lignes sont comparés sans tenir compte de la casse ni des espaces. Ajouter une ligne = ajouter son numéro dans « routes ».",
+  "center": [
+    45.6938,
+    5.1307
+  ],
+  "radius_km": 100,
+  "date_window_days": 120,
+  "anchors": {
+    "satolas": [
+      45.6938,
+      5.1307
+    ],
+    "colombier": [
+      45.718,
+      5.103
+    ],
+    "aeroport": [
+      45.7215,
+      5.0811
+    ],
+    "gare_lys_tgv": [
+      45.7206,
+      5.0758
+    ],
+    "gare_sqf": [
+      45.6443,
+      5.1105
+    ],
+    "gare_la_verpilliere": [
+      45.6327,
+      5.1424
+    ],
+    "luzais_pr": [
+      45.629,
+      5.105
+    ],
+    "meyzieu_panettes": [
+      45.779,
+      5.033
+    ]
+  },
+  "feeds": [
+    {
+      "key": "ruban",
+      "label": "Ruban (CAPI)",
+      "datasets": {
+        "slugs": [
+          "reseau-ruban"
+        ],
+        "title_keywords": [
+          [
+            "ruban"
+          ]
+        ]
+      },
+      "select": {
+        "mode": "all"
+      },
+      "school": {
+        "name_regex": "(?i)(scol|^VER\\d|^SAT|satolas|^SQF)"
+      },
+      "tad": {
+        "name_regex": "(?i)(p[ée]ri|flexi|nuit|dimanche|tad|zone)"
+      },
+      "fare": "ruban"
+    },
+    {
+      "key": "tcl",
+      "label": "TCL",
+      "datasets": {
+        "slugs": [],
+        "title_keywords": [
+          [
+            "réseau urbain tcl"
+          ],
+          [
+            "reseau urbain tcl"
+          ]
+        ]
+      },
+      "select": {
+        "mode": "routes",
+        "routes": [
+          "T3",
+          "C200",
+          "248",
+          "47",
+          "1E",
+          "67",
+          "232",
+          "32"
+        ]
+      },
+      "fare": "tcl"
+    },
+    {
+      "key": "tcl_scolaire",
+      "label": "TCL Junior Direct",
+      "datasets": {
+        "slugs": [],
+        "title_keywords": [
+          [
+            "réseau scolaire tcl"
+          ],
+          [
+            "reseau scolaire tcl"
+          ]
+        ]
+      },
+      "select": {
+        "mode": "near",
+        "anchors": [
+          "colombier"
+        ],
+        "km": 3.5
+      },
+      "school": {
+        "all": true
+      },
+      "fare": "tcl"
+    },
+    {
+      "key": "rhonexpress",
+      "label": "Rhônexpress",
+      "datasets": {
+        "slugs": [],
+        "title_keywords": [
+          [
+            "rhônexpress"
+          ],
+          [
+            "rhonexpress"
+          ]
+        ]
+      },
+      "select": {
+        "mode": "all"
+      },
+      "fare": "rhonexpress"
+    },
+    {
+      "key": "cre",
+      "label": "Cars Région Express",
+      "datasets": {
+        "slugs": [
+          "reseau-interurbain-cars-region-express"
+        ],
+        "title_keywords": [
+          [
+            "cars région express"
+          ],
+          [
+            "cars region express"
+          ]
+        ]
+      },
+      "select": {
+        "mode": "routes",
+        "routes": [
+          "X04",
+          "X05",
+          "X06",
+          "X07"
+        ]
+      },
+      "fare": "cars_region"
+    },
+    {
+      "key": "cri38",
+      "label": "Cars Région Isère",
+      "datasets": {
+        "slugs": [
+          "reseau-cars-region-isere-38"
+        ],
+        "title_keywords": [
+          [
+            "isère (38)"
+          ],
+          [
+            "isere (38)"
+          ],
+          [
+            "cars région isère"
+          ]
+        ]
+      },
+      "select": {
+        "mode": "routes_or_near",
+        "routes": [
+          "X04",
+          "X05",
+          "X06",
+          "X07",
+          "T16",
+          "T17",
+          "T20",
+          "PCH02",
+          "BJA03",
+          "IDB03",
+          "VLM03",
+          "CRE09",
+          "VER03",
+          "VER04",
+          "VER05",
+          "VER07",
+          "VER09",
+          "SQF01",
+          "IDB05"
+        ],
+        "anchors": [
+          "satolas"
+        ],
+        "km": 2.5
+      },
+      "school": {
+        "not_routes": [
+          "X04",
+          "X05",
+          "X06",
+          "X07",
+          "T16",
+          "T17",
+          "T20"
+        ]
+      },
+      "fare": "cars_region"
+    },
+    {
+      "key": "sncf",
+      "label": "SNCF (TER / TGV)",
+      "datasets": {
+        "slugs": [
+          "horaires-sncf"
+        ],
+        "title_keywords": [
+          [
+            "horaires sncf"
+          ],
+          [
+            "réseau national",
+            "sncf"
+          ]
+        ]
+      },
+      "select": {
+        "mode": "trips_near",
+        "anchors": [
+          "gare_sqf",
+          "gare_la_verpilliere",
+          "gare_lys_tgv"
+        ],
+        "km": 0.8
+      },
+      "fare": "sncf"
+    },
+    {
+      "key": "flixbus",
+      "label": "FlixBus",
+      "datasets": {
+        "slugs": [
+          "flixbus-horaires-theoriques-du-reseau-europeen-1"
+        ],
+        "title_keywords": [
+          [
+            "flixbus"
+          ]
+        ]
+      },
+      "select": {
+        "mode": "trips_near",
+        "anchors": [
+          "aeroport"
+        ],
+        "km": 2.0
+      },
+      "fare": "autocar",
+      "warning": "Interdit aux moins de 16 ans non accompagnés"
+    },
+    {
+      "key": "blablacar",
+      "label": "BlaBlaCar Bus",
+      "datasets": {
+        "slugs": [
+          "horaires-theoriques-du-reseau-europeen-de-blablabus-ouibus-gtfs"
+        ],
+        "title_keywords": [
+          [
+            "blablacar",
+            "bus"
+          ]
+        ]
+      },
+      "select": {
+        "mode": "trips_near",
+        "anchors": [
+          "aeroport"
+        ],
+        "km": 2.0
+      },
+      "fare": "autocar",
+      "warning": "BlaBlaCar Bus cesse son activité fin 2026 / janvier 2027"
+    }
+  ]
+}
