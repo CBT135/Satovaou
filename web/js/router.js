@@ -16,10 +16,10 @@ export function distM(lat1, lon1, lat2, lon2) {
   return 2 * R * Math.asin(Math.sqrt(a));
 }
 export const walkMin = (m) => Math.max(1, Math.ceil((m * DETOUR) / WALK_M_PER_MIN));
-/** Voiture : distance routière ≈ 1,3 × vol d'oiseau ; 40 km/h sur courte distance, 65 km/h au-delà de 15 km. */
+/** Voiture : distance routière ≈ 1,3 × vol d'oiseau ; 32 km/h sur courte distance, 60 km/h au-delà de 15 km (calé sur les durées IGN). */
 export function carMin(m) {
   const road = m * DETOUR;
-  const kmh = road > 15000 ? 65 : 40;
+  const kmh = road > 15000 ? 60 : 32;
   return Math.max(2, Math.ceil(road / ((kmh * 1000) / 60)));
 }
 export const PARK_MIN = 5;            // se garer et rejoindre le quai
@@ -109,6 +109,12 @@ export function accessStops(net, lat, lon, opts = {}) {
     for (const j of nearbyIdx(net, lat, lon, CAR_MAX_M)) {
       if (!net._carOk[j]) continue;
       const d = distM(lat, lon, net.stops[j][1], net.stops[j][2]);
+      // se garer seulement « de son côté » : pas à un arrêt plus proche de l'autre extrémité du trajet
+      if (opts.other) {
+        const dOther = distM(opts.other.lat, opts.other.lon, net.stops[j][1], net.stops[j][2]);
+        const dTot = distM(lat, lon, opts.other.lat, opts.other.lon);
+        if (d > dTot * 0.6 || dOther < d) continue;
+      }
       cand.push([j, carMin(d) + PARK_MIN, Math.round(d * DETOUR), "car"]);
     }
     cand.sort((a, b) => a[1] - b[1]);
@@ -176,8 +182,8 @@ export function csa(net, C, origin, dest, t0, opts = {}) {
   for (const [s, w, m, mode] of origin) {
     if (t0 + w < S[s]) { S[s] = t0 + w; A[s] = t0 + w; J[s] = { kind: "origin", walk: w, m, mode }; }
   }
+  // pas de raccourci départ -> arrivée sans transport (les trajets à pied / en voiture seuls sont traités à part)
   let best = Infinity, bestStop = -1;
-  for (const [s, [w]] of egress) if (A[s] + w < best) { best = A[s] + w; bestStop = s; }
   const maxT = t0 + (opts.horizon || 360);
   for (let i = lowerBound(C.dep, C.n, t0); i < C.n; i++) {
     const dep = C.dep[i];
@@ -284,8 +290,8 @@ export function search(net, q) {
   } else C = buildDay(net, q.date, q.routeOk);
   const maxWalk = q.maxWalk ?? MAX_WALK_MIN;
   const car = q.car || "none";
-  const origin = accessStops(net, q.o.lat, q.o.lon, { maxWalk, car: car === "start" || car === "both" });
-  const dest = accessStops(net, q.d.lat, q.d.lon, { maxWalk, car: car === "end" || car === "both" });
+  const origin = accessStops(net, q.o.lat, q.o.lon, { maxWalk, car: car === "start" || car === "both", other: q.d });
+  const dest = accessStops(net, q.d.lat, q.d.lon, { maxWalk, car: car === "end" || car === "both", other: q.o });
   const found = new Map();
   const add = (j) => { if (j && (!found.has(j.sig) || found.get(j.sig).duration > j.duration)) found.set(j.sig, j); };
   if (origin.length && dest.length) {

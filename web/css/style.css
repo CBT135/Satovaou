@@ -120,3 +120,4 @@ footer a, .small a { color: var(--blue); }
 .fares td span { white-space: normal; }
 .carchip { color: #333; font-weight: 600; }
 .legs li.carleg { border-left: 3px dashed #555; }
+.warnline { color: var(--warn); font-weight: 600; }
