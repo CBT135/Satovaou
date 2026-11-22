@@ -58,12 +58,83 @@
         "mode": "all"
       },
       "school": {
-        "name_regex": "(?i)(scol|^VER\\d|^SAT|satolas|^SQF)"
+        "name_regex": "^[A-Za-z]"
       },
       "tad": {
-        "name_regex": "(?i)(p[ée]ri|flexi|nuit|dimanche|tad|zone)"
+        "name_regex": "^\\d{4}$"
       },
-      "fare": "ruban"
+      "fare": "ruban",
+      "_doc": "Lignes 1 à 9 : urbaines. Codes à 4 chiffres : lignes périurbaines Ruban Péri (sur réservation). Codes en lettres (SATOLA, VER04, BJA01…) : services scolaires.",
+      "supplement": {
+        "_doc": "Ruban Péri zone E (Satolas-et-Bonce ↔ La Verpillière) : ajouté seulement si le GTFS ne dessert pas déjà Satolas hors scolaire. Horaires publiés par la mairie.",
+        "skip_if_served_near": {
+          "anchor": "satolas",
+          "km": 1.2
+        },
+        "route": {
+          "short": "PÉRI E",
+          "long": "Ruban Péri zone E – Satolas-et-Bonce ↔ La Verpillière (TAD)",
+          "tad": true,
+          "school": false
+        },
+        "days": "1111110",
+        "stops": [
+          {
+            "name": "Satolas Place",
+            "match": [
+              "satolas place",
+              "satolas mairie",
+              "satolas centre"
+            ],
+            "coord": [
+              45.6936,
+              5.1307
+            ]
+          },
+          {
+            "name": "Le Chaffard",
+            "match": [
+              "chaffard"
+            ],
+            "coord": [
+              45.6745,
+              5.117
+            ]
+          },
+          {
+            "name": "La Verpillière Gare",
+            "match": [
+              "verpilliere gare",
+              "gare verpilliere"
+            ],
+            "coord": [
+              45.6327,
+              5.1424
+            ]
+          }
+        ],
+        "offsets": [
+          0,
+          6,
+          15
+        ],
+        "outbound": [
+          "06:45",
+          "09:15",
+          "11:15",
+          "14:15",
+          "16:15",
+          "18:15"
+        ],
+        "inbound": [
+          "08:45",
+          "10:45",
+          "13:45",
+          "15:45",
+          "17:45",
+          "19:45"
+        ]
+      }
     },
     {
       "key": "tcl",
@@ -80,7 +151,7 @@
         ]
       },
       "select": {
-        "mode": "routes",
+        "mode": "routes_or_near",
         "routes": [
           "T3",
           "C200",
@@ -89,10 +160,20 @@
           "1E",
           "67",
           "232",
-          "32"
-        ]
+          "32",
+          "RX",
+          "RHONEXPRESS"
+        ],
+        "anchors": [
+          "colombier"
+        ],
+        "km": 1.5
       },
-      "fare": "tcl"
+      "fare": "tcl",
+      "school": {
+        "name_regex": "^(JD|[3-9]\\d\\d$)"
+      },
+      "_doc": "Lignes du tableau + toute ligne passant à moins de 1,5 km de Colombier-Saugnieu (la 1E a changé de numéro le 31/08/2026). Junior Direct : codes JD ou 300–999."
     },
     {
       "key": "tcl_scolaire",
@@ -101,10 +182,11 @@
         "slugs": [],
         "title_keywords": [
           [
-            "réseau scolaire tcl"
+            "scolaire",
+            "tcl"
           ],
           [
-            "reseau scolaire tcl"
+            "junior direct"
           ]
         ]
       },
@@ -131,6 +213,14 @@
           ],
           [
             "rhonexpress"
+          ],
+          [
+            "rhône express"
+          ],
+          [
+            "tramway",
+            "aéroport",
+            "lyon"
           ]
         ]
       },

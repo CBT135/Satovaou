@@ -54,7 +54,12 @@ jobs:
           print("| Réseau | État | Courses | Lignes trouvées | Lignes absentes |\n|---|---|---|---|---|")
           for f in d["feeds"]:
               print(f"| {f.get('label')} | {f.get('status')} | {f.get('trips', '')} | {', '.join(f.get('routes', []))[:200]} | {', '.join(f.get('missing', []))} |")
-          print(f"\nVacances zone A récupérées : {len(d['holidays'])}")
+          print(f"\nVacances zone A récupérées : {len(d['holidays'])}\n")
+          print("<details><summary>Détail des lignes retenues</summary>\n")
+          print("| Réseau | Ligne | Nom | Scolaire | TAD |\n|---|---|---|---|---|")
+          for r in d["routes"]:
+              print(f"| {d['feeds'][r['f']]['label']} | {r['s']} | {r['l'][:80]} | {'oui' if r['sc'] else ''} | {'oui' if r['tad'] else ''} |")
+          print("\n</details>")
           EOF
 
       - uses: actions/configure-pages@v5

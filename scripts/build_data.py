@@ -246,6 +246,7 @@ class Builder:
         routes = {}
         for r in read_csv(zf, "routes.txt") or []:
             routes[r["route_id"]] = r
+        agencies = {a.get("agency_id", ""): (a.get("agency_name") or "").strip() for a in read_csv(zf, "agency.txt") or []}
 
         wanted_names = {norm(x) for x in sel.get("routes", [])}
 
@@ -322,15 +323,15 @@ class Builder:
             elif school_cfg.get("not_routes") is not None:
                 school = norm(short) not in not_school
             elif school_re:
-                school = bool(school_re.search(short) or school_re.search(long_))
+                school = bool(school_re.search(short or long_))
             else:
                 school = False
-            tad = bool(tad_re and (tad_re.search(short) or tad_re.search(long_)))
+            tad = bool(tad_re and tad_re.search(short or long_))
             try:
                 rtype = int(r.get("route_type") or 3)
             except ValueError:
                 rtype = 3
-            agency = (r.get("agency_id") or "").strip()
+            agency = agencies.get((r.get("agency_id") or "").strip()) or (r.get("agency_id") or "").strip()
             route_out[rid] = len(self.routes)
             self.routes.append({
                 "f": fidx, "s": short, "l": long_, "c": (r.get("route_color") or "").strip()[:6],
@@ -389,12 +390,82 @@ class Builder:
             self.trips.append([pidx, self.service_id(days), dep0, times, resa, headsign])
             nkept += 1
 
-        meta.update({"trips": nkept, "routes": sorted(found_names)})
+        if feed.get("supplement"):
+            nkept += self.supplement(feed, fidx, stops, route_out)
+        meta.update({"trips": nkept, "routes": sorted(found_names | self._supp_names.pop(fidx, set()))})
         log(f"  {feed['key']} : {nkept} courses, lignes : {', '.join(sorted(found_names))[:300]}")
         missing = [n for n in sel.get("routes", []) if not any(norm(n) == norm(f) for f in found_names)]
         if missing and mode in ("routes", "routes_or_near"):
             meta["missing"] = missing
             log(f"  lignes non trouvées dans ce GTFS : {', '.join(missing)}")
+
+    _supp_names: dict = {}
+
+    def supplement(self, feed, fidx, gtfs_stops, route_out) -> int:
+        """Ligne ajoutée à la main (TAD absent du GTFS), voir config « supplement »."""
+        sp = feed["supplement"]
+        cond = sp.get("skip_if_served_near")
+        if cond:
+            anchor = self.anchors[cond["anchor"]]
+            mine = set(route_out.values())
+            for pat in self.patterns:
+                if pat["r"] in mine and not self.routes[pat["r"]]["sc"]:
+                    if any(haversine_km(self.stops[s][1], self.stops[s][2], *anchor) <= cond["km"] for s in pat["st"]):
+                        log("  supplément ignoré : le GTFS dessert déjà ce secteur")
+                        return 0
+        import unicodedata
+
+        def fold(x):
+            return unicodedata.normalize("NFKD", x).encode("ascii", "ignore").decode().lower()
+
+        seq = []
+        for spec in sp["stops"]:
+            best = None
+            for sid, (name, lat, lon, _) in gtfs_stops.items():
+                n = fold(name)
+                if any(all(w in n for w in alt.split()) for alt in spec["match"]):
+                    d = haversine_km(lat, lon, *spec["coord"])
+                    if d <= 3 and (best is None or d < best[0]):
+                        best = (d, name, lat, lon)
+            if best:
+                name, lat, lon = best[1], best[2], best[3]
+            else:
+                name, lat, lon = spec["name"], spec["coord"][0], spec["coord"][1]
+                log(f"  supplément : arrêt « {spec['name']} » non trouvé dans le GTFS, coordonnées approximatives")
+            idx = len(self.stops)
+            for i, s in enumerate(self.stops):
+                if s[3] == fidx and s[0] == name and abs(s[1] - lat) < 1e-4 and abs(s[2] - lon) < 1e-4:
+                    idx = i
+                    break
+            else:
+                self.stops.append([name, round(lat, 5), round(lon, 5), fidx])
+            seq.append(idx)
+        r = sp["route"]
+        ri = len(self.routes)
+        self.routes.append({"f": fidx, "s": r["short"], "l": r["long"], "c": "", "tc": "", "t": 3,
+                            "sc": bool(r.get("school")), "tad": bool(r.get("tad")), "a": feed["label"]})
+        self._supp_names.setdefault(fidx, set()).add(r["short"])
+        # jours : lundi..dimanche, hors jours fériés
+        days = set()
+        for off in range(self.ndays):
+            d = self.start + dt.timedelta(days=off)
+            if sp["days"][d.weekday()] == "1" and not is_public_holiday(d):
+                days.add(off)
+        svc = self.service_id(days)
+        offs = sp["offsets"]
+        n = 0
+        for direction, times in (("outbound", sp["outbound"]), ("inbound", sp["inbound"])):
+            st = seq if direction == "outbound" else list(reversed(seq))
+            rel = offs if direction == "outbound" else [offs[-1] - o for o in reversed(offs)]
+            pkey = (ri, tuple(st))
+            self.pattern_index[pkey] = len(self.patterns)
+            self.patterns.append({"r": ri, "st": st})
+            for t in times:
+                h, m = map(int, t.split(":"))
+                self.trips.append([self.pattern_index[pkey], svc, h * 60 + m, list(rel), 1, self.stops[st[-1]][0]])
+                n += 1
+        log(f"  supplément « {r['short']} » : {n} courses")
+        return n
 
     def output(self, holidays):
         return {
@@ -411,6 +482,24 @@ class Builder:
             "trips": self.trips,
             "holidays": holidays,
         }
+
+
+def is_public_holiday(d: dt.date) -> bool:
+    y = d.year
+    a, b, c = y % 19, y // 100, y % 100
+    dd, e = b // 4, b % 4
+    f = (b + 8) // 25
+    g = (b - f + 1) // 3
+    h = (19 * a + b - dd - g + 15) % 30
+    i, k = c // 4, c % 4
+    l_ = (32 + 2 * e + 2 * i - h - k) % 7
+    m = (a + 11 * h + 22 * l_) // 451
+    month = (h + l_ - 7 * m + 114) // 31
+    day = (h + l_ - 7 * m + 114) % 31 + 1
+    easter = dt.date(y, month, day)
+    fixed = {(1, 1), (5, 1), (5, 8), (7, 14), (8, 15), (11, 1), (11, 11), (12, 25)}
+    mobile = {easter + dt.timedelta(days=n) for n in (1, 39, 50)}
+    return (d.month, d.day) in fixed or d in mobile
 
 
 # --------------------------------------------------------------------------- holidays

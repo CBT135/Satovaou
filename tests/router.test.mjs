@@ -37,7 +37,7 @@ console.log("Colombier → Grenoble, 8h30, tri durée"); show(r);
 ok(r.journeys.every((j, i, a) => i === 0 || a[i - 1].duration <= j.duration), "tri par durée");
 
 const dim = search(net, { o: satolas, d: partDieu, date: "2026-11-22", time: 7 * 60 });
-ok(!dim.journeys.some((j) => j.legs.some((l) => l.kind === "ride" && net.routes[l.route].s === "PÉRI E")), "pas de TAD le dimanche");
+ok(!dim.journeys.some((j) => j.legs.some((l) => l.kind === "ride" && net.routes[l.route].tad)), "pas de TAD le dimanche");
 
 const schoolIdx = net.routes.findIndex((x) => x.sc);
 ok(schoolIdx >= 0, "ligne scolaire détectée (" + (net.routes[schoolIdx] || {}).s + ")");
