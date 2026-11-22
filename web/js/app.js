@@ -232,6 +232,9 @@ function journeyLayer(j, strong) {
   for (const l of j.legs) {
     if (l.kind === "walk") {
       L.polyline([pointLL(l.from), pointLL(l.to)], { color: "#333", weight: strong ? 4 : 3, dashArray: "4 7", opacity: 0.85 }).addTo(g);
+    } else if (l.kind === "car") {
+      L.polyline([pointLL(l.from), pointLL(l.to)], { color: "#fff", weight: strong ? 8 : 6, opacity: 0.9 }).addTo(g);
+      L.polyline([pointLL(l.from), pointLL(l.to)], { color: "#555", weight: strong ? 5 : 4, dashArray: "12 8", opacity: 0.95 }).addTo(g);
     } else {
       const p = state.net.patterns[state.net.trips[l.trip][0]];
       const pts = p.st.slice(l.fromPos, l.toPos + 1).map((s) => [state.net.stops[s][1], state.net.stops[s][2]]);
@@ -263,13 +266,16 @@ function select(i) {
 function cardHtml(j, i, date) {
   const net = state.net;
   const rides = j.legs.filter((l) => l.kind === "ride");
-  const walkTotal = j.legs.filter((l) => l.kind === "walk").reduce((s, l) => s + l.min, 0);
-  const walkM = j.legs.filter((l) => l.kind === "walk").reduce((s, l) => s + (l.m || 0), 0);
-  const chain = j.legs.map((l) => (l.kind === "ride" ? badge(l.route) : l.min >= 2 ? `<span class="walkchip">🚶${l.min}′</span>` : "")).filter(Boolean).join(" › ");
+  const walks = j.legs.filter((l) => l.kind === "walk" && !((l.m ?? 999) < 30 && (l.from === "origin" || l.to === "dest")));
+  const walkTotal = walks.reduce((s, l) => s + l.min, 0);
+  const carTotal = j.legs.filter((l) => l.kind === "car").reduce((s, l) => s + l.min, 0);
+  const walkM = walks.reduce((s, l) => s + (l.m || 0), 0);
+  const chain = j.legs.map((l) => (l.kind === "ride" ? badge(l.route) : l.kind === "car" ? `<span class="walkchip carchip">🚗 ${l.min}′</span>` : l.min >= 2 ? `<span class="walkchip">🚶${l.min}′</span>` : "")).filter(Boolean).join(" › ");
   const profile = $("#profile").value;
   const e2 = (x) => `${x.toFixed(2).replace(".", ",")} €`;
-  const fare = rides.length ? estimate(net, j, profile, date) : { occ: 0, week: 0, month: 0, lines: [] };
+  const fare = rides.length || carTotal ? estimate(net, j, profile, date) : { occ: 0, week: 0, month: 0, lines: [] };
   const flags = new Set();
+  if (carTotal) flags.add(`<span class="flag">🚗 Durée voiture estimée hors trafic${j.carOnly ? "" : " (+5 min pour se garer)"}</span>`);
   for (const l of rides) {
     const r = net.routes[l.route], feed = net.feeds[r.f] || {};
     if (r.tad || l.resa) flags.add(`<span class="flag">📞 Réservation obligatoire (${esc(r.s || r.l)})</span>`);
@@ -280,6 +286,11 @@ function cardHtml(j, i, date) {
   let legs = "", prevArr = null;
   for (const l of j.legs) {
     if (prevArr !== null && l.dep - prevArr >= 2 && l.kind === "ride") legs += `<li><span class="sub">⏳ Attente ${fmtDur(l.dep - prevArr)}</span></li>`;
+    if (l.kind === "car") {
+      legs += `<li class="carleg"><span class="t">🚗 Voiture ${l.min} min</span> <span class="sub">(${(l.m / 1000).toFixed(1).replace(".", ",")} km${l.to !== "dest" ? ", stationnement compris" : ""})</span><br><span class="sub">${esc(stopName(l.from))} → ${esc(stopName(l.to))}</span></li>`;
+      prevArr = l.arr;
+      continue;
+    }
     if (l.kind === "walk") {
       const m = l.m ?? Math.round(distM(...pointLL(l.from), ...pointLL(l.to)));
       if (m < 30 && (l.from === "origin" || l.to === "dest")) { prevArr = l.arr; continue; }
@@ -301,7 +312,7 @@ function cardHtml(j, i, date) {
   return `<li class="card" data-i="${i}" tabindex="0">
     <div class="top"><span class="times">${fmtTime(j.leave)} → ${fmtTime(j.arrive)}</span><span class="dur">${fmtDur(j.duration)}</span></div>
     <div class="chain">${chain || '<span class="walkchip">🚶 À pied</span>'}</div>
-    <div class="meta"><span>${rides.length ? (j.transfers ? `${j.transfers} correspondance${j.transfers > 1 ? "s" : ""}` : "Direct") : "Marche seule"} · marche ${walkTotal} min (${(walkM / 1000).toFixed(1).replace(".", ",")} km)</span>
+    <div class="meta"><span>${rides.length ? (j.transfers ? `${j.transfers} correspondance${j.transfers > 1 ? "s" : ""}` : "Direct") : j.carOnly ? "Tout en voiture" : "Marche seule"}${walkTotal ? ` · marche ${walkTotal} min (${(walkM / 1000).toFixed(1).replace(".", ",")} km)` : ""}${carTotal ? ` · voiture ${carTotal} min` : ""}</span>
       <span class="cost" title="Trajet / semaine (5 A/R) / mois (22 A/R)">≈ ${e2(fare.occ)} · sem. ${e2(fare.week)} · mois ${e2(fare.month)}</span></div>
     ${flags.size ? `<div class="flags">${[...flags].join("")}</div>` : ""}
     <ol class="legs">${legs}</ol>
@@ -336,6 +347,7 @@ function runSearch() {
     const t0 = performance.now();
     const res = search(state.net, {
       o: state.from, d: state.to, date, time, arriveBy: $("#mode").value === "arrive", sort: $("#sort").value,
+      car: $("#car").value, maxWalk: +$("#maxwalk").value,
       routeOk: (ri) => routeEnabled(ri, date),
     });
     state.results = res.journeys;
@@ -344,8 +356,10 @@ function runSearch() {
     const ms = Math.round(performance.now() - t0);
     if (!res.journeys.length) {
       status.classList.add("error");
-      status.textContent = !res.originStops ? "Aucun arrêt à moins de 4,5 km du départ." : !res.destStops ? "Aucun arrêt à moins de 4,5 km de l'arrivée."
-        : "Aucune solution trouvée dans les 4 heures. Essayez un autre horaire ou un autre jour.";
+      const mw = $("#maxwalk").value;
+      status.textContent = !res.originStops ? `Aucun arrêt à moins de ${mw} min de marche du départ : essayez l'option « Voiture au départ ».`
+        : !res.destStops ? `Aucun arrêt à moins de ${mw} min de marche de l'arrivée : essayez l'option « Voiture à l'arrivée ».`
+        : "Aucune solution trouvée dans les 4 heures. Essayez un autre horaire, un autre jour ou l'option voiture.";
     } else {
       status.textContent = `${res.journeys.length} solution${res.journeys.length > 1 ? "s" : ""}, triées par ${$("#sort").value === "duration" ? "durée" : "heure d'arrivée"} (${ms} ms).`;
     }
@@ -390,7 +404,7 @@ function initForm() {
     updateSchoolNote(); drawStops(); autoSearch();
   });
   $("#date").addEventListener("change", () => { updateSchoolNote(); drawStops(); autoSearch(); });
-  ["#time", "#mode", "#sort", "#profile"].forEach((s) => $(s).addEventListener("change", autoSearch));
+  ["#time", "#mode", "#sort", "#profile", "#car", "#maxwalk"].forEach((s) => $(s).addEventListener("change", () => { saveHash(); autoSearch(); }));
   $("#show-stops").addEventListener("change", drawStops);
   $("#search").addEventListener("submit", (e) => { e.preventDefault(); runSearch(); });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") setPicking(null); });
@@ -403,6 +417,8 @@ function saveHash() {
   if (state.to) p.set("b", `${state.to.lat.toFixed(5)},${state.to.lon.toFixed(5)},${state.to.label}`);
   p.set("d", $("#date").value); p.set("h", $("#time").value); p.set("m", $("#mode").value);
   if (state.youth) p.set("j", "1");
+  if ($("#car").value !== "none") p.set("v", $("#car").value);
+  if ($("#maxwalk").value !== "20") p.set("w", $("#maxwalk").value);
   history.replaceState(null, "", `#${p.toString()}`);
 }
 function loadHash() {
@@ -412,6 +428,8 @@ function loadHash() {
   if (p.get("h")) $("#time").value = p.get("h");
   if (p.get("m")) $("#mode").value = p.get("m");
   if (p.get("j") === "1") $("#youth").click();
+  if (p.get("v")) $("#car").value = p.get("v");
+  if (p.get("w")) $("#maxwalk").value = p.get("w");
   const a = pt(p.get("a")), b = pt(p.get("b"));
   if (a) setPoint("from", a, { keepView: true });
   if (b) setPoint("to", b, { keepView: !a });

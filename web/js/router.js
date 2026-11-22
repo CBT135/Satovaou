@@ -5,8 +5,9 @@ export const WALK_M_PER_MIN = 75;     // ~4,5 km/h
 export const DETOUR = 1.3;            // facteur trajet réel / vol d'oiseau
 export const TRANSFER_MIN = 2;        // marge de correspondance
 export const FOOTPATH_M = 450;        // correspondance à pied entre arrêts proches
-export const ACCESS_M = 2000;         // marche max vers le premier / depuis le dernier arrêt
-export const ACCESS_M_EXT = 4500;     // si aucun arrêt dans ACCESS_M (secteurs ruraux)
+export const MAX_WALK_MIN = 20;       // marche max par étape (réglable dans l'interface)
+export const CAR_MAX_M = 30000;       // voiture : rayon de recherche des parkings (gares, trams, cars express)
+export const CAR_STOPS = 40;          // voiture : nombre max d'arrêts candidats
 
 export function distM(lat1, lon1, lat2, lon2) {
   const R = 6371000, r = Math.PI / 180;
@@ -15,6 +16,13 @@ export function distM(lat1, lon1, lat2, lon2) {
   return 2 * R * Math.asin(Math.sqrt(a));
 }
 export const walkMin = (m) => Math.max(1, Math.ceil((m * DETOUR) / WALK_M_PER_MIN));
+/** Voiture : distance routière ≈ 1,3 × vol d'oiseau ; 40 km/h sur courte distance, 65 km/h au-delà de 15 km. */
+export function carMin(m) {
+  const road = m * DETOUR;
+  const kmh = road > 15000 ? 65 : 40;
+  return Math.max(2, Math.ceil(road / ((kmh * 1000) / 60)));
+}
+export const PARK_MIN = 5;            // se garer et rejoindre le quai
 
 function dayOffset(startIso, dateIso) {
   const [y1, m1, d1] = startIso.split("-").map(Number), [y2, m2, d2] = dateIso.split("-").map(Number);
@@ -55,6 +63,12 @@ export function prepare(net) {
   const stopRoutes = Array.from({ length: n }, () => new Set());
   net.patterns.forEach((p) => p.st.forEach((s) => stopRoutes[s].add(p.r)));
   net._stopRoutes = stopRoutes.map((s) => [...s]);
+  // arrêts où l'on peut raisonnablement se garer : gares, trams, cars express, Rhônexpress, TAD/Péri
+  net._carOk = net._stopRoutes.map((rs) => rs.some((ri) => {
+    const r = net.routes[ri], f = net.feeds[r.f] || {};
+    return r.t === 0 || r.t === 1 || r.t === 2 || (r.t >= 100 && r.t < 200) || r.t === 900 ||
+      f.key === "rhonexpress" || (f.fare === "cars_region" && /^X/i.test(r.s || "")) || r.tad;
+  }));
   return net;
 }
 
@@ -71,27 +85,39 @@ export function nearbyIdx(net, lat, lon, radiusM) {
   return out.filter((j) => distM(lat, lon, net.stops[j][1], net.stops[j][2]) <= radiusM);
 }
 
-/** Arrêts accessibles à pied depuis un point : [[stopIdx, minutes, mètres], …] */
-export function accessStops(net, lat, lon, allowedStop) {
-  for (const r of [ACCESS_M, ACCESS_M_EXT]) {
-    const res = nearbyIdx(net, lat, lon, r)
-      .filter((j) => !allowedStop || allowedStop[j])
-      .map((j) => {
-        const d = distM(lat, lon, net.stops[j][1], net.stops[j][2]);
-        return [j, walkMin(d), Math.round(d)];
-      });
-    if (res.length) {
-      // ajoute les arrêts voisins (correspondances à pied) des arrêts trouvés
-      const best = new Map(res.map((x) => [x[0], x]));
-      for (const [j, w, m] of res)
-        for (const [nb, w2, m2] of net._foot[j] || []) {
-          const cur = best.get(nb);
-          if (!cur || cur[1] > w + w2) best.set(nb, [nb, w + w2, m + m2]);
-        }
-      return [...best.values()];
+/**
+ * Arrêts accessibles depuis un point : [[stopIdx, minutes, mètres, "walk"|"car"], …]
+ * opts = {maxWalk: minutes de marche max, car: true pour autoriser la voiture}
+ */
+export function accessStops(net, lat, lon, opts = {}) {
+  const maxWalk = opts.maxWalk ?? MAX_WALK_MIN;
+  const radius = (maxWalk * WALK_M_PER_MIN) / DETOUR;
+  const best = new Map();
+  for (const j of nearbyIdx(net, lat, lon, radius)) {
+    const d = distM(lat, lon, net.stops[j][1], net.stops[j][2]);
+    const w = walkMin(d);
+    if (w <= maxWalk) best.set(j, [j, w, Math.round(d), "walk"]);
+  }
+  // arrêts voisins (correspondance à pied) des arrêts trouvés
+  for (const [j, w, m] of [...best.values()])
+    for (const [nb, w2, m2] of net._foot[j] || []) {
+      const cur = best.get(nb);
+      if (w + w2 <= maxWalk && (!cur || cur[1] > w + w2)) best.set(nb, [nb, w + w2, m + m2, "walk"]);
+    }
+  if (opts.car) {
+    const cand = [];
+    for (const j of nearbyIdx(net, lat, lon, CAR_MAX_M)) {
+      if (!net._carOk[j]) continue;
+      const d = distM(lat, lon, net.stops[j][1], net.stops[j][2]);
+      cand.push([j, carMin(d) + PARK_MIN, Math.round(d * DETOUR), "car"]);
+    }
+    cand.sort((a, b) => a[1] - b[1]);
+    for (const c of cand.slice(0, CAR_STOPS)) {
+      const cur = best.get(c[0]);
+      if (!cur || cur[1] > c[1] + 3) best.set(c[0], c); // à pied si presque aussi rapide
     }
   }
-  return [];
+  return [...best.values()];
 }
 
 /**
@@ -146,9 +172,9 @@ export function csa(net, C, origin, dest, t0, opts = {}) {
   const A = new Float64Array(n).fill(Infinity);    // arrivée brute
   const J = new Array(n);
   const T = new Int32Array(C.tripMeta.length).fill(-1);
-  const egress = new Map(dest.map(([s, w, m]) => [s, [w, m]]));
-  for (const [s, w, m] of origin) {
-    if (t0 + w < S[s]) { S[s] = t0 + w; A[s] = t0 + w; J[s] = { kind: "origin", walk: w, m }; }
+  const egress = new Map(dest.map(([s, w, m, mode]) => [s, [w, m, mode]]));
+  for (const [s, w, m, mode] of origin) {
+    if (t0 + w < S[s]) { S[s] = t0 + w; A[s] = t0 + w; J[s] = { kind: "origin", walk: w, m, mode }; }
   }
   let best = Infinity, bestStop = -1;
   for (const [s, [w]] of egress) if (A[s] + w < best) { best = A[s] + w; bestStop = s; }
@@ -180,12 +206,12 @@ export function csa(net, C, origin, dest, t0, opts = {}) {
   // reconstruction
   const legs = [];
   let s = bestStop, guard = 0;
-  const [ew, em] = egress.get(bestStop);
-  legs.push({ kind: "walk", from: s, to: "dest", min: ew, m: em });
+  const [ew, em, emode] = egress.get(bestStop);
+  legs.push({ kind: emode === "car" ? "car" : "walk", from: s, to: "dest", min: ew, m: em });
   while (guard++ < 50) {
     const j = J[s];
     if (!j) return null;
-    if (j.kind === "origin") { legs.push({ kind: "walk", from: "origin", to: s, min: j.walk, m: j.m }); break; }
+    if (j.kind === "origin") { legs.push({ kind: j.mode === "car" ? "car" : "walk", from: "origin", to: s, min: j.walk, m: j.m }); break; }
     if (j.kind === "foot") { legs.push({ kind: "walk", from: j.from, to: s, min: j.walk, m: j.m }); s = j.from; continue; }
     const ce = j.enter, cx = j.exit, meta = C.tripMeta[C.trip[ce]];
     const trip = net.trips[meta.ti], pat = net.patterns[trip[0]];
@@ -194,7 +220,9 @@ export function csa(net, C, origin, dest, t0, opts = {}) {
     s = C.from[ce];
   }
   legs.reverse();
-  return finalize(net, legs, best);
+  const res = finalize(net, legs, best);
+  if (res && opts.maxWalk && res.legs.some((l) => l.kind === "walk" && l.min > opts.maxWalk)) return null;
+  return res;
 }
 
 function finalize(net, legs, arrival) {
@@ -212,21 +240,31 @@ function finalize(net, legs, arrival) {
   for (let i = out.indexOf(rides[0]) - 1; i >= 0; i--) { out[i].arr = t; out[i].dep = t - out[i].min; t = out[i].dep; }
   const leave = t;
   for (let i = 0; i < out.length; i++) {
-    if (out[i].kind === "walk" && out[i].dep === undefined) { const p = out[i - 1]; out[i].dep = p.arr; out[i].arr = p.arr + out[i].min; }
+    if (out[i].kind !== "ride" && out[i].dep === undefined) { const p = out[i - 1]; out[i].dep = p.arr; out[i].arr = p.arr + out[i].min; }
   }
   const arr = out[out.length - 1].arr ?? arrival;
-  const sig = rides.map((r) => `${r.trip}:${r.from}:${r.to}`).join("|");
+  const sig = out.map((r) => (r.kind === "ride" ? `${r.trip}:${r.from}:${r.to}` : r.kind)).join("|");
   return { legs: out, leave, arrive: arr, duration: arr - leave, transfers: rides.length - 1, sig };
 }
 
-/** Marche directe si la destination est proche. */
-export function walkOnly(o, d, t, arriveBy) {
+/** Marche directe si elle ne dépasse pas la marche max. */
+export function walkOnly(o, d, t, arriveBy, maxWalk = MAX_WALK_MIN) {
   const m = distM(o.lat, o.lon, d.lat, d.lon);
-  if (m > 3000) return null;
   const min = walkMin(m);
+  if (min > maxWalk) return null;
   const leave = arriveBy ? t - min : t;
   return { legs: [{ kind: "walk", from: "origin", to: "dest", min, m: Math.round(m), dep: leave, arr: leave + min }],
     leave, arrive: leave + min, duration: min, transfers: 0, sig: "walk" };
+}
+
+/** Trajet entièrement en voiture (estimation). */
+export function carOnly(o, d, t, arriveBy) {
+  const m = distM(o.lat, o.lon, d.lat, d.lon);
+  if (m < 500) return null;
+  const min = carMin(m);
+  const leave = arriveBy ? t - min : t;
+  return { legs: [{ kind: "car", from: "origin", to: "dest", min, m: Math.round(m * DETOUR), dep: leave, arr: leave + min }],
+    leave, arrive: leave + min, duration: min, transfers: 0, sig: "car", carOnly: true };
 }
 
 /**
@@ -235,8 +273,10 @@ export function walkOnly(o, d, t, arriveBy) {
  */
 export function search(net, q) {
   const C = buildDay(net, q.date, q.routeOk);
-  const origin = accessStops(net, q.o.lat, q.o.lon);
-  const dest = accessStops(net, q.d.lat, q.d.lon);
+  const maxWalk = q.maxWalk ?? MAX_WALK_MIN;
+  const car = q.car || "none";
+  const origin = accessStops(net, q.o.lat, q.o.lon, { maxWalk, car: car === "start" || car === "both" });
+  const dest = accessStops(net, q.d.lat, q.d.lon, { maxWalk, car: car === "end" || car === "both" });
   const found = new Map();
   const add = (j) => { if (j && (!found.has(j.sig) || found.get(j.sig).duration > j.duration)) found.set(j.sig, j); };
   if (origin.length && dest.length) {
@@ -244,17 +284,18 @@ export function search(net, q) {
     if (q.arriveBy) for (let t = q.time - 300; t <= q.time; t += 10) starts.push(t);
     else for (let t = q.time; t <= q.time + 240; t += 10) starts.push(t);
     for (const t0 of starts) {
-      const j = csa(net, C, origin, dest, t0, { horizon: 400 });
+      const j = csa(net, C, origin, dest, t0, { horizon: 400, maxWalk });
       if (!j) continue;
       if (q.arriveBy && j.arrive > q.time) continue;
       if (!q.arriveBy && j.leave < q.time) continue;
       add(j);
     }
   }
-  add(walkOnly(q.o, q.d, q.time, q.arriveBy));
+  add(walkOnly(q.o, q.d, q.time, q.arriveBy, maxWalk));
+  if (car !== "none") add(carOnly(q.o, q.d, q.time, q.arriveBy));
   let list = [...found.values()];
   // retire les solutions dominées (partir plus tôt ET arriver plus tard qu'une autre)
-  list = list.filter((a) => !list.some((b) => b !== a && b.leave >= a.leave && b.arrive <= a.arrive &&
+  list = list.filter((a) => a.carOnly || !list.some((b) => b !== a && !b.carOnly && b.leave >= a.leave && b.arrive <= a.arrive &&
     (b.leave > a.leave || b.arrive < a.arrive) && b.transfers <= a.transfers));
   if (q.sort === "duration") list.sort((a, b) => a.duration - b.duration || a.arrive - b.arrive);
   else list.sort((a, b) => a.arrive - b.arrive || a.duration - b.duration);

@@ -71,6 +71,25 @@
             </select>
           </label>
         </div>
+        <div class="options">
+          <label>Voiture
+            <select id="car">
+              <option value="none">Sans voiture</option>
+              <option value="start">Au départ (jusqu'à un arrêt)</option>
+              <option value="end">À l'arrivée (depuis un arrêt)</option>
+              <option value="both">Au départ et à l'arrivée</option>
+            </select>
+          </label>
+          <label>Marche max par étape
+            <select id="maxwalk">
+              <option value="5">5 min</option>
+              <option value="10">10 min</option>
+              <option value="15">15 min</option>
+              <option value="20" selected>20 min</option>
+              <option value="30">30 min</option>
+            </select>
+          </label>
+        </div>
 
         <div class="toggles">
           <button type="button" id="youth" class="toggle" aria-pressed="false" title="Ajoute les lignes scolaires (réservées aux élèves inscrits)">🎒 Réservé aux jeunes (transport scolaire)</button>

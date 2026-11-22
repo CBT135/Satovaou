@@ -173,34 +173,7 @@
       "school": {
         "name_regex": "^(JD|[3-9]\\d\\d$)"
       },
-      "_doc": "Lignes du tableau + toute ligne passant à moins de 1,5 km de Colombier-Saugnieu (la 1E a changé de numéro le 31/08/2026). Junior Direct : codes JD ou 300–999."
-    },
-    {
-      "key": "tcl_scolaire",
-      "label": "TCL Junior Direct",
-      "datasets": {
-        "slugs": [],
-        "title_keywords": [
-          [
-            "scolaire",
-            "tcl"
-          ],
-          [
-            "junior direct"
-          ]
-        ]
-      },
-      "select": {
-        "mode": "near",
-        "anchors": [
-          "colombier"
-        ],
-        "km": 3.5
-      },
-      "school": {
-        "all": true
-      },
-      "fare": "tcl"
+      "_doc": "Lignes du tableau + toute ligne passant à moins de 1,5 km de Colombier-Saugnieu (la 1E a changé de numéro le 31/08/2026). Junior Direct : codes JD ou 300–999. Les Junior Direct (JD…) sont dans ce même GTFS."
     },
     {
       "key": "rhonexpress",
@@ -227,34 +200,72 @@
       "select": {
         "mode": "all"
       },
-      "fare": "rhonexpress"
-    },
-    {
-      "key": "cre",
-      "label": "Cars Région Express",
-      "datasets": {
-        "slugs": [
-          "reseau-interurbain-cars-region-express"
+      "fare": "rhonexpress",
+      "supplement": {
+        "_doc": "Le GTFS Rhônexpress publié date de 2023 : horaires de principe (un tram toutes les 15 min, environ 5h–0h, moins de 30 min de trajet). Utilisé seulement si aucun GTFS à jour n'est trouvé.",
+        "only_if_no_gtfs": true,
+        "route": {
+          "short": "RX",
+          "long": "Rhônexpress – Aéroport ↔ Lyon Part-Dieu (horaires de principe)",
+          "tad": false,
+          "school": false,
+          "type": 0,
+          "color": "c8102e"
+        },
+        "days": "1111111",
+        "stops": [
+          {
+            "name": "Aéroport Lyon Saint-Exupéry (Rhônexpress)",
+            "match": [],
+            "coord": [
+              45.7204,
+              5.0767
+            ]
+          },
+          {
+            "name": "Meyzieu ZI",
+            "match": [],
+            "coord": [
+              45.7764,
+              5.0166
+            ]
+          },
+          {
+            "name": "Vaulx-en-Velin La Soie",
+            "match": [],
+            "coord": [
+              45.7612,
+              4.9216
+            ]
+          },
+          {
+            "name": "Lyon Part-Dieu Villette",
+            "match": [],
+            "coord": [
+              45.7597,
+              4.8617
+            ]
+          }
         ],
-        "title_keywords": [
-          [
-            "cars région express"
-          ],
-          [
-            "cars region express"
-          ]
-        ]
-      },
-      "select": {
-        "mode": "routes",
-        "routes": [
-          "X04",
-          "X05",
-          "X06",
-          "X07"
-        ]
-      },
-      "fare": "cars_region"
+        "offsets": [
+          0,
+          12,
+          20,
+          29
+        ],
+        "frequency": {
+          "outbound": {
+            "from": "05:00",
+            "to": "23:45",
+            "every": 15
+          },
+          "inbound": {
+            "from": "04:30",
+            "to": "23:45",
+            "every": 15
+          }
+        }
+      }
     },
     {
       "key": "cri38",

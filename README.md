@@ -10,6 +10,8 @@ Appli web qui fonctionne sur PC, Mac et téléphone. Sur téléphone, on peut l'
 - Départ et arrivée : clic sur la carte, adresse (géocodeur IGN), arrêt, ou raccourcis. Bouton ⇅ pour inverser. Marqueurs déplaçables.
 - Jour et heure, au choix « Partir à » ou « Arriver avant ».
 - Solutions triées par **arrivée la plus tôt** ou par **durée la plus courte**.
+- **Voiture** au départ, à l'arrivée ou les deux. On se gare à une gare, un arrêt de tram, un car express ou un transport à la demande, dans un rayon de 30 km. Un trajet tout en voiture est aussi proposé. Durées estimées hors trafic, coût ~0,15 €/km.
+- **Marche plafonnée par étape** (20 min par défaut, réglable de 5 à 30 min) : vers le premier arrêt, depuis le dernier, et en correspondance. Les solutions qui dépassent sont éliminées.
 - Survoler une solution la trace sur la carte ; cliquer dessus l'affiche en détail avec le tracé.
 - Temps de marche calculé (vol d'oiseau × 1,3 à 4,5 km/h) :
   - vers le premier arrêt et depuis le dernier ;
@@ -23,6 +25,7 @@ Appli web qui fonctionne sur PC, Mac et téléphone. Sur téléphone, on peut l'
   Pour la semaine et le mois, c'est le moins cher entre tickets ou carnets et abonnements (Pass 7 jours, abonnement mensuel, illico…).
 - Alertes : réservation obligatoire pour le transport à la demande, ligne scolaire, FlixBus interdit aux moins de 16 ans non accompagnés, fin de BlaBlaCar Bus.
 - Arrêts de toutes les lignes affichés et filtrables par réseau.
+- Rhônexpress : le GTFS publié date de 2023. Sans GTFS à jour, l'appli utilise des horaires de principe (toutes les 15 min). La ligne Ruban Péri zone E est ajoutée d'après les horaires de la mairie quand elle manque au GTFS.
 
 ## Données
 
@@ -65,7 +68,7 @@ Tests sans réseau, avec des GTFS fictifs :
 python tests/make_fake_gtfs.py
 python scripts/build_data.py --only-local --start 2026-11-22 --out /tmp/fake \
   --local ruban=tests/gtfs/ruban.zip sncf=tests/gtfs/sncf.zip tcl=tests/gtfs/tcl.zip \
-          rhonexpress=tests/gtfs/rhonexpress.zip cre=tests/gtfs/cre.zip flixbus=tests/gtfs/flixbus.zip
+          rhonexpress=tests/gtfs/rhonexpress.zip cri38=tests/gtfs/cre.zip flixbus=tests/gtfs/flixbus.zip
 node tests/router.test.mjs /tmp/fake/network.json
 ```
 

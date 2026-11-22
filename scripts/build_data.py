@@ -390,7 +390,7 @@ class Builder:
             self.trips.append([pidx, self.service_id(days), dep0, times, resa, headsign])
             nkept += 1
 
-        if feed.get("supplement"):
+        if feed.get("supplement") and not feed["supplement"].get("only_if_no_gtfs"):
             nkept += self.supplement(feed, fidx, stops, route_out)
         meta.update({"trips": nkept, "routes": sorted(found_names | self._supp_names.pop(fidx, set()))})
         log(f"  {feed['key']} : {nkept} courses, lignes : {', '.join(sorted(found_names))[:300]}")
@@ -442,7 +442,7 @@ class Builder:
             seq.append(idx)
         r = sp["route"]
         ri = len(self.routes)
-        self.routes.append({"f": fidx, "s": r["short"], "l": r["long"], "c": "", "tc": "", "t": 3,
+        self.routes.append({"f": fidx, "s": r["short"], "l": r["long"], "c": r.get("color", ""), "tc": "", "t": r.get("type", 3),
                             "sc": bool(r.get("school")), "tad": bool(r.get("tad")), "a": feed["label"]})
         self._supp_names.setdefault(fidx, set()).add(r["short"])
         # jours : lundi..dimanche, hors jours fériés
@@ -454,7 +454,15 @@ class Builder:
         svc = self.service_id(days)
         offs = sp["offsets"]
         n = 0
-        for direction, times in (("outbound", sp["outbound"]), ("inbound", sp["inbound"])):
+        def expand(direction):
+            if sp.get("frequency"):
+                fq = sp["frequency"][direction]
+                h1, m1 = map(int, fq["from"].split(":"))
+                h2, m2 = map(int, fq["to"].split(":"))
+                return [f"{t // 60:02d}:{t % 60:02d}" for t in range(h1 * 60 + m1, h2 * 60 + m2 + 1, fq["every"])]
+            return sp[direction]
+
+        for direction, times in (("outbound", expand("outbound")), ("inbound", expand("inbound"))):
             st = seq if direction == "outbound" else list(reversed(seq))
             rel = offs if direction == "outbound" else [offs[-1] - o for o in reversed(offs)]
             pkey = (ri, tuple(st))
@@ -462,7 +470,7 @@ class Builder:
             self.patterns.append({"r": ri, "st": st})
             for t in times:
                 h, m = map(int, t.split(":"))
-                self.trips.append([self.pattern_index[pkey], svc, h * 60 + m, list(rel), 1, self.stops[st[-1]][0]])
+                self.trips.append([self.pattern_index[pkey], svc, h * 60 + m, list(rel), 1 if r.get("tad") else 0, self.stops[st[-1]][0]])
                 n += 1
         log(f"  supplément « {r['short']} » : {n} courses")
         return n
@@ -551,7 +559,16 @@ def main():
         if feed["key"] in local:
             metas.append(({"key": feed["key"], "label": feed["label"], "source": local[feed["key"]]},
                           open(local[feed["key"]], "rb").read()))
-        elif not args.only_local:
+        elif args.only_local:
+            if feed.get("supplement", {}).get("only_if_no_gtfs") and feed["key"] not in local:
+                fidx = len(b.feeds_meta)
+                meta = {"key": feed["key"], "label": feed["label"], "status": "ok", "source": "horaires de principe",
+                        "fare": feed.get("fare"), "warning": feed.get("warning")}
+                b.feeds_meta.append(meta)
+                meta["trips"] = b.supplement(feed, fidx, {}, {})
+                meta["routes"] = sorted(b._supp_names.pop(fidx, set()))
+            continue
+        else:
             try:
                 dss = find_datasets(feed["datasets"])
             except Exception as e:  # noqa: BLE001
@@ -559,7 +576,15 @@ def main():
                 dss = []
             if not dss:
                 log("  aucun jeu de données trouvé")
-                b.feeds_meta.append({"key": feed["key"], "label": feed["label"], "status": "introuvable"})
+                if feed.get("supplement", {}).get("only_if_no_gtfs"):
+                    fidx = len(b.feeds_meta)
+                    meta = {"key": feed["key"], "label": feed["label"], "status": "ok",
+                            "source": "horaires de principe (config/lines.json)", "fare": feed.get("fare"), "warning": feed.get("warning")}
+                    b.feeds_meta.append(meta)
+                    meta["trips"] = b.supplement(feed, fidx, {}, {})
+                    meta["routes"] = sorted(b._supp_names.pop(fidx, set()))
+                else:
+                    b.feeds_meta.append({"key": feed["key"], "label": feed["label"], "status": "introuvable"})
                 continue
             for ds in dss:
                 got = download_gtfs(ds)

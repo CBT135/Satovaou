@@ -38,7 +38,7 @@ jobs:
           python tests/make_fake_gtfs.py
           python scripts/build_data.py --only-local --start 2026-11-22 --out /tmp/fake \
             --local ruban=tests/gtfs/ruban.zip sncf=tests/gtfs/sncf.zip tcl=tests/gtfs/tcl.zip \
-                    rhonexpress=tests/gtfs/rhonexpress.zip cre=tests/gtfs/cre.zip flixbus=tests/gtfs/flixbus.zip
+                    rhonexpress=tests/gtfs/rhonexpress.zip cri38=tests/gtfs/cre.zip flixbus=tests/gtfs/flixbus.zip
           node tests/router.test.mjs /tmp/fake/network.json
 
       - name: Génération des horaires réels
