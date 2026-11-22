@@ -123,9 +123,19 @@ function textColor(ri) {
   const [R, G, B] = [0, 2, 4].map((i) => parseInt(c.slice(i, i + 2), 16));
   return R * 0.299 + G * 0.587 + B * 0.114 > 160 ? "#111" : "#fff";
 }
+/** Nom affiché d'une ligne : « TER C26 », « TGV » pour les trains SNCF, sinon le numéro de ligne. */
+function lineLabel(ri) {
+  const r = state.net.routes[ri], f = state.net.feeds[r.f] || {};
+  const base = r.s || r.l || "?";
+  if (f.key === "sncf") {
+    if (/tgv|ouigo|inoui|lyria/i.test(`${r.s} ${r.l} ${r.a}`) || r.t === 101 || r.t === 102) return "TGV";
+    return /^ter\b/i.test(base) ? base : `TER ${base}`;
+  }
+  return base;
+}
 function badge(ri) {
   const r = state.net.routes[ri];
-  const label = r.s || r.l || "?";
+  const label = lineLabel(ri);
   return `<span class="badge" style="background:${routeColor(ri)};color:${textColor(ri)}" title="${esc(r.l)}">${esc(label)}</span>`;
 }
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
