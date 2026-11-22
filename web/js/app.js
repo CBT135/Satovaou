@@ -480,4 +480,9 @@ async function loadData() {
 initForm();
 loadHash();
 loadData();
-if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
+if ("serviceWorker" in navigator && location.protocol === "https:") {
+  navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).catch(() => {});
+  // une nouvelle version du site prend la main : recharger une fois pour utiliser le code à jour
+  let reloaded = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => { if (!reloaded && navigator.serviceWorker.controller) { reloaded = true; location.reload(); } });
+}
