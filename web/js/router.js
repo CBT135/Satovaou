@@ -122,7 +122,17 @@ export function accessStops(net, lat, lon, opts = {}) {
     }
     cand.sort((a, b) => a[1] - b[1]);
     local.sort((a, b) => a[1] - b[1]);
-    for (const c of [...cand.slice(0, CAR_STOPS), ...local.slice(0, 30)]) {
+    // arrêts locaux : les 2 plus proches de chaque ligne (sinon les nombreux arrêts du village masquent les autres lignes)
+    const perRoute = new Map(), localKept = [];
+    for (const c of local) {
+      let keep = false;
+      for (const r of net._stopRoutes[c[0]] || []) {
+        const k = perRoute.get(r) || 0;
+        if (k < 2) { perRoute.set(r, k + 1); keep = true; }
+      }
+      if (keep) localKept.push(c);
+    }
+    for (const c of [...cand.slice(0, CAR_STOPS), ...localKept.slice(0, 80)]) {
       const cur = best.get(c[0]);
       if (!cur || cur[1] > c[1] + 3) best.set(c[0], c); // à pied si presque aussi rapide
     }
