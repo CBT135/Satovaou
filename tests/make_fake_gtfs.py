@@ -53,7 +53,7 @@ def every(start, end, step):
 feed("ruban",
      {"SAT": ("Satolas Place", 45.6935, 5.1305), "CHAF": ("Le Chaffard", 45.6750, 5.1180),
       "LVG": ("La Verpillière Gare", 45.6327, 5.1424), "ECO": ("Satolas École", 45.6940, 5.1290)},
-     [("PERI", "PÉRI E", "Ruban Péri zone E", 3), ("SATS", "SATOLAS", "Satolas scolaire", 3)],
+     [("PERI", "1390", "Ruban Péri zone E", 3), ("SATS", "SATOLA", "Satolas scolaire", 3)],
      [("PERI", [("SAT", m), ("CHAF", m + 5), ("LVG", m + 15)], 2) for m in (405, 555, 675, 855, 975, 1095)] +
      [("PERI", [("LVG", m), ("CHAF", m + 10), ("SAT", m + 15)], 2) for m in (525, 645, 825, 945, 1065, 1185)] +
      [("SATS", [("CHAF", 490), ("ECO", 500)], 0)])
