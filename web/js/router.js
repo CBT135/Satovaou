@@ -195,7 +195,7 @@ export function csa(net, C, origin, dest, t0, opts = {}) {
     const tk = C.trip[i];
     if (T[tk] === -1) {
       if (S[C.from[i]] > dep) continue;
-      if (opts.ban && opts.ban.has(C.tripMeta[tk].r)) continue;
+      if (opts.only !== undefined && J[C.from[i]] && J[C.from[i]].kind === "origin" && C.tripMeta[tk].r !== opts.only) continue;
       T[tk] = i;
     }
     const to = C.to[i], arr = C.arr[i];
@@ -317,30 +317,31 @@ export function search(net, q) {
       add(j);
     }
   }
-  // alternatives : on interdit la 1re ligne des meilleures solutions pour faire apparaître d'autres lignes
-  // (ex. C201 aux 4 Vents quand voiture + C26 ou Rhônexpress est plus rapide)
+  // alternatives : une recherche par ligne accessible au départ, pour proposer aussi les lignes plus lentes
+  // (ex. voiture + C201 aux 4 Vents quand voiture + C26 ou Rhônexpress est plus rapide)
   if (origin.length && dest.length) {
-    const ban = new Set();
-    for (let round = 0; round < 3; round++) {
-      for (const j of found.values()) {
-        const r1 = j.legs.find((l) => l.kind === "ride");
-        if (r1) ban.add(r1.route);
+    const byRoute = new Map();
+    for (const acc of origin)
+      for (const r of net._stopRoutes[acc[0]] || []) {
+        if (q.routeOk && !q.routeOk(r)) continue;
+        const cur = byRoute.get(r);
+        if (!cur) byRoute.set(r, { t: acc[1], stops: [acc] }); else { cur.stops.push(acc); cur.t = Math.min(cur.t, acc[1]); }
       }
-      let gotNew = false;
-      const starts = [];
-      if (q.arriveBy) for (let t = q.time - 300; t <= q.time; t += 20) starts.push(t);
-      else for (let t = q.time; t <= q.time + 240; t += 20) starts.push(t);
+    const have = new Set([...found.values()].map((j) => (j.legs.find((l) => l.kind === "ride") || {}).route));
+    const routes = [...byRoute.entries()].filter(([r]) => !have.has(r)).sort((x, y) => x[1].t - y[1].t).slice(0, 15);
+    const starts = [];
+    if (q.arriveBy) for (let t = q.time - 240; t <= q.time; t += 30) starts.push(t);
+    else for (let t = q.time; t <= q.time + 180; t += 30) starts.push(t);
+    for (const [r, { stops }] of routes) {
       for (const t0 of starts) {
-        const j = csa(net, C, origin, dest, t0, { horizon: 400, maxWalk, ban });
+        const j = csa(net, C, stops, dest, t0, { horizon: 300, maxWalk, only: r });
         if (!j) continue;
         if (q.arriveBy && j.arrive > q.time) continue;
         if (!q.arriveBy && j.leave < q.time) continue;
         j.noCar = !j.legs.some((l) => l.kind === "car");
         j.alt = true;
-        if (!found.has(j.sig)) gotNew = true;
         add(j);
       }
-      if (!gotNew) break;
     }
   }
   add(walkOnly(q.o, q.d, q.time, q.arriveBy, maxWalk));
@@ -356,6 +357,10 @@ export function search(net, q) {
     (b.leave > a.leave || b.arrive < a.arrive) && b.transfers <= a.transfers));
   if (q.sort === "duration") list.sort((a, b) => a.duration - b.duration || a.arrive - b.arrive);
   else list.sort((a, b) => a.arrive - b.arrive || a.duration - b.duration);
+  if (list.length) {
+    const firstArr = Math.min(...list.filter((j) => !j.alt).map((j) => j.arrive), Infinity);
+    list = list.filter((j) => !j.alt || j.arrive <= firstArr + 120);
+  }
   // au plus 3 solutions par enchaînement de lignes, pour laisser de la place aux autres lignes
   const perSig = new Map();
   list = list.filter((j) => {
