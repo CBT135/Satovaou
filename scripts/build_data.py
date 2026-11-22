@@ -262,14 +262,20 @@ class Builder:
 
         # pré-sélection des courses (évite de charger tout stop_times des gros réseaux)
         if mode in ("near", "trips_near", "routes_or_near"):
+            import unicodedata
+            fold = lambda x: unicodedata.normalize("NFKD", x).encode("ascii", "ignore").decode().lower()  # noqa: E731
+            names = [fold(n) for n in sel.get("names", [])]
             near_ids = {sid for sid, st in stops.items()
-                        if self.near_anchor(st[1], st[2], sel["anchors"], sel["km"])}
+                        if self.near_anchor(st[1], st[2], sel["anchors"], sel["km"])
+                        or (names and any(n in fold(st[0]) for n in names))}
+            log(f"  arrêts repères : {', '.join(sorted({stops[i][0] for i in near_ids}))[:300]}")
             near_trips = set()
             for s in read_csv(zf, "stop_times.txt") or []:
                 if s.get("stop_id") in near_ids:
                     near_trips.add(s.get("trip_id"))
         else:
             near_trips = set()
+            near_ids = set()
         if mode == "trips_near":
             candidate = near_trips
         elif mode == "all":
@@ -360,7 +366,7 @@ class Builder:
             if len(sts) < 2:
                 continue
             if trip_near_mode:
-                if not any(self.near_anchor(stops[x[1]][1], stops[x[1]][2], sel["anchors"], sel["km"]) for x in sts):
+                if not any(x[1] in near_ids for x in sts):
                     continue
                 # coupe les arrêts hors du rayon (on garde les extrémités internes)
                 sts = [x for x in sts if haversine_km(stops[x[1]][1], stops[x[1]][2], *self.center) <= self.radius + 5]

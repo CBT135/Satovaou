@@ -20,16 +20,16 @@
       5.0811
     ],
     "gare_lys_tgv": [
-      45.7206,
-      5.0758
+      45.7211,
+      5.075
     ],
     "gare_sqf": [
-      45.6443,
-      5.1105
+      45.6378,
+      5.0996
     ],
     "gare_la_verpilliere": [
-      45.6327,
-      5.1424
+      45.6277,
+      5.1513
     ],
     "luzais_pr": [
       45.629,
@@ -366,9 +366,18 @@
           "gare_la_verpilliere",
           "gare_lys_tgv"
         ],
-        "km": 0.8
+        "km": 0.6,
+        "names": [
+          "verpilliere",
+          "saint-quentin-fallavier",
+          "st-quentin-fallavier",
+          "st quentin fallavier",
+          "saint quentin fallavier",
+          "saint-exupery tgv"
+        ]
       },
-      "fare": "sncf"
+      "fare": "sncf",
+      "_doc": "Tous les trains (TER, TGV) qui s'arrêtent à Saint-Quentin-Fallavier, La Verpillière ou Lyon Saint-Exupéry TGV, repérés par position et par nom de gare."
     },
     {
       "key": "flixbus",
