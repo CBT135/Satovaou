@@ -75,13 +75,22 @@ feed("tcl",
      {"COL": ("Colombier Les Salines", 45.7180, 5.1030), "SLM": ("Maréchal Juin", 45.6870, 5.0450),
       "GB": ("Grange Blanche", 45.7430, 4.8790), "PAN": ("Meyzieu Les Panettes", 45.7790, 5.0330),
       "MZI": ("Meyzieu ZI", 45.7760, 5.0160), "SOIE": ("Vaulx-en-Velin La Soie", 45.7610, 4.9210),
-      "PDV": ("Part-Dieu Villette", 45.7598, 4.8608), "AER": ("Aéroport Gare routière", 45.7212, 5.0805)},
+      "PDV": ("Part-Dieu Villette", 45.7598, 4.8608), "AER": ("Aéroport Gare routière", 45.7212, 5.0805),
+      "GBD": ("Grange Blanche (métro D)", 45.7428, 4.8792), "SAXD": ("Saxe - Gambetta", 45.7536, 4.8473),
+      "GUID": ("Guillotière", 45.7550, 4.8424), "BELD": ("Bellecour (D)", 45.7578, 4.8327),
+      "BELA": ("Bellecour (A)", 45.7581, 4.8332), "AMPA": ("Ampère - Victor Hugo", 45.7531, 4.8291),
+      "PERA": ("Perrache", 45.7489, 4.8262)},
      [("1E", "1E", "Colombier-Saugnieu - Grange Blanche", 3), ("T3", "T3", "Meyzieu - Part-Dieu", 0),
-      ("248", "248", "Meyzieu ZI - Aéroport - Saint-Laurent-de-Mure", 3)],
+      ("248", "248", "Meyzieu ZI - Aéroport - Saint-Laurent-de-Mure", 3),
+      ("MD", "D", "Métro D Gare de Vénissieux - Gare de Vaise", 1), ("MA", "A", "Métro A Perrache - Vaulx La Soie", 1)],
      [("1E", [("COL", m), ("SLM", m + 11), ("GB", m + 34)], 0) for m in every(300, 1320, 20)] +
      [("1E", [("GB", m), ("SLM", m + 23), ("COL", m + 34)], 0) for m in every(310, 1330, 20)] +
      [("T3", [("PAN", m), ("MZI", m + 2), ("SOIE", m + 12), ("PDV", m + 22)], 0) for m in every(300, 1410, 10)] +
-     [("248", [("MZI", m), ("AER", m + 14), ("SLM", m + 25)], 0) for m in every(330, 1320, 30)])
+     [("248", [("MZI", m), ("AER", m + 14), ("SLM", m + 25)], 0) for m in every(330, 1320, 30)] +
+     [("MD", [("GBD", m), ("SAXD", m + 4), ("GUID", m + 6), ("BELD", m + 9)], 0) for m in every(300, 1440, 4)] +
+     [("MD", [("BELD", m), ("GUID", m + 3), ("SAXD", m + 5), ("GBD", m + 9)], 0) for m in every(300, 1440, 4)] +
+     [("MA", [("BELA", m), ("AMPA", m + 2), ("PERA", m + 4)], 0) for m in every(300, 1440, 4)] +
+     [("MA", [("PERA", m), ("AMPA", m + 2), ("BELA", m + 4)], 0) for m in every(300, 1440, 4)])
 
 feed("rhonexpress",
      {"RXA": ("Aéroport Saint-Exupéry", 45.7208, 5.0790), "RXM": ("Meyzieu ZI", 45.7762, 5.0165),

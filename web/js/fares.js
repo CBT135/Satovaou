@@ -14,6 +14,7 @@ export const PROFILES = {
 
 export const TRIPS_WEEK = 10;   // 5 allers-retours
 export const TRIPS_MONTH = 44;  // 22 jours ouvrés × aller-retour
+export const CAR_EUR_KM = 0.15; // carburant + usure, estimation
 
 const eur = (x) => Math.round(x * 100) / 100;
 
@@ -41,6 +42,17 @@ function networkFare(key, legs, ctx) {
       return {
         occ: 1.3 * tickets, note: "ticket appli 1 h (1,50 € à bord)", carnet: 1.0 / 1.3,
         week: null, month: age < 26 ? { p: 11.5, n: "abonnement mensuel réduit (à vérifier)" } : { p: 30, n: "abonnement mensuel" },
+      };
+    }
+    case "tag": {
+      // M réso (Grenoble) : tarifs non relevés précisément, estimation à vérifier sur reso-m.fr
+      if (age < 5) return { occ: 0, week: { p: 0, n: "gratuit" }, month: { p: 0, n: "gratuit" }, note: "gratuit < 5 ans" };
+      let tickets = 0, last = -Infinity;
+      for (const l of legs) if (l.dep - last > 60) { tickets++; last = l.dep; }
+      const young = age <= 25;
+      return {
+        occ: 2.0 * tickets, note: "ticket 1 h (estimation, à vérifier)", carnet: 0.85,
+        week: null, month: young ? { p: 20, n: "abonnement jeune (estimation)" } : { p: 60, n: "abonnement mensuel (estimation)" },
       };
     }
     case "rhonexpress": {
@@ -99,7 +111,9 @@ export function estimate(net, journey, profileKey, dateIso) {
   const ctx = { age: prof.age, dateIso };
   const groups = new Map();
   const lines = [];
+  let carKm = 0;
   for (const l of journey.legs) {
+    if (l.kind === "car") { carKm += (l.m || 0) / 1000; continue; }
     if (l.kind !== "ride") continue;
     const r = net.routes[l.route], feed = net.feeds[r.f] || {};
     const a = net.stops[l.from], b = net.stops[l.to];
@@ -119,6 +133,12 @@ export function estimate(net, journey, profileKey, dateIso) {
     const week = best(f.occ, TRIPS_WEEK, f.week, f.carnet);
     const month = best(f.occ, TRIPS_MONTH, f.month, f.carnet);
     lines.push({ label: `${g.label} ${[...new Set(g.names)].join(", ")}`, occ: eur(f.occ), week: { p: eur(week.p), n: week.n }, month: { p: eur(month.p), n: month.n }, note: f.note });
+  }
+  if (carKm > 0) {
+    const p = carKm * CAR_EUR_KM;
+    lines.push({ label: `Voiture (${carKm.toFixed(1).replace(".", ",")} km)`, occ: eur(p),
+      week: { p: eur(p * TRIPS_WEEK), n: `${TRIPS_WEEK} trajets` }, month: { p: eur(p * TRIPS_MONTH), n: `${TRIPS_MONTH} trajets` },
+      note: "carburant + usure ~0,15 €/km, stationnement non compté (parcs relais TCL gratuits avec un titre TCL)" });
   }
   const sum = (k) => eur(lines.reduce((s, x) => s + (k === "occ" ? x.occ : x[k].p), 0));
   return { occ: sum("occ"), week: sum("week"), month: sum("month"), total: sum("occ"), lines, approx: true };

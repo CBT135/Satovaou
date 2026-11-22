@@ -118,3 +118,5 @@ footer a, .small a { color: var(--blue); }
 .card.selected .fare { display: block; }
 .fares td:not(:first-child) { white-space: nowrap; }
 .fares td span { white-space: normal; }
+.carchip { color: #333; font-weight: 600; }
+.legs li.carleg { border-left: 3px dashed #555; }
