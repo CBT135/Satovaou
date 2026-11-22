@@ -78,14 +78,18 @@ function networkFare(key, legs, ctx) {
         return { occ: p, note: "TGV, prix variable (dès ~20 €)", week: null, month: null };
       }
       const sat = new Date(dateIso + "T12:00:00").getDay() === 6;
-      let p = Math.max(1.8, km * 1.15 * 0.13);
+      // calé sur les prix TER AURA publiés (km = vol d'oiseau) : Lyon–La Verpillière 7,90 € / mensuel 77,20 €,
+      // Lyon–Montluel 6,30 € / 63,60 €, Lyon–Grenoble 26,60 € / 224 €, Annecy–Grenoble 24,90 € / 216,50 €,
+      // Montmélian–Grenoble 11,20 € / hebdo 30,20 €
+      let p = Math.max(2, 0.25 + km * 0.285);
+      const fullMonth = 17.4 + km * 2.27;
+      const fullWeek = fullMonth * 0.27;
       if (age < 12) p = sat ? 0 : p / 2;
       const young = age < 26;
-      // illico HEBDO rentable dès 4 trajets, illico MENSUEL dès 5 allers-retours ; versions JEUNES ~ −25 %
       return {
-        occ: p, note: age < 12 && sat ? "gratuit < 12 ans le samedi" : age < 12 ? "tarif enfant" : young ? "TER (−50 % avec illico LIBERTÉ JEUNES)" : "TER, estimation au km",
-        week: { p: p * 4 * (young ? 0.75 : 1), n: young ? "illico HEBDO JEUNES (estimation)" : "illico HEBDO (estimation)" },
-        month: { p: p * 10 * (young ? 0.75 : 1), n: young ? "illico MENSUEL JEUNES (estimation)" : "illico MENSUEL (estimation)" },
+        occ: p, note: age < 12 && sat ? "gratuit < 12 ans le samedi" : age < 12 ? "tarif enfant" : young ? "TER (−50 % avec illico LIBERTÉ JEUNES, 15 €/an)" : "TER, estimation calée sur les prix publiés",
+        week: { p: fullWeek * (young ? 0.75 : 1), n: young ? "illico HEBDO JEUNES (estimation)" : "illico HEBDO (estimation)" },
+        month: { p: fullMonth * (young ? 0.75 : 1), n: young ? "illico MENSUEL JEUNES (estimation)" : "illico MENSUEL (estimation)" },
       };
     }
     case "autocar": {

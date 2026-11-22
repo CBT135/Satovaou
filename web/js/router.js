@@ -122,7 +122,17 @@ export function accessStops(net, lat, lon, opts = {}) {
     }
     cand.sort((a, b) => a[1] - b[1]);
     local.sort((a, b) => a[1] - b[1]);
-    for (const c of [...cand.slice(0, CAR_STOPS), ...local.slice(0, 30)]) {
+    // arrêts locaux : les 2 plus proches de chaque ligne (sinon les nombreux arrêts du village masquent les autres lignes)
+    const perRoute = new Map(), localKept = [];
+    for (const c of local) {
+      let keep = false;
+      for (const r of net._stopRoutes[c[0]] || []) {
+        const k = perRoute.get(r) || 0;
+        if (k < 2) { perRoute.set(r, k + 1); keep = true; }
+      }
+      if (keep) localKept.push(c);
+    }
+    for (const c of [...cand.slice(0, CAR_STOPS), ...localKept.slice(0, 80)]) {
       const cur = best.get(c[0]);
       if (!cur || cur[1] > c[1] + 3) best.set(c[0], c); // à pied si presque aussi rapide
     }
@@ -148,7 +158,7 @@ export function buildDay(net, dateIso, routeOk) {
       const last = dep0 + times[times.length - 1] + shift;
       if (last < 0) continue;
       const k = tripMeta.length;
-      tripMeta.push({ ti, shift });
+      tripMeta.push({ ti, shift, r: p.r });
       for (let i = 0; i + 1 < p.st.length; i++) {
         const dep = dep0 + times[i] + shift, arr = dep0 + times[i + 1] + shift;
         list.push(dep, arr, p.st[i], p.st[i + 1], k, i);
@@ -195,6 +205,7 @@ export function csa(net, C, origin, dest, t0, opts = {}) {
     const tk = C.trip[i];
     if (T[tk] === -1) {
       if (S[C.from[i]] > dep) continue;
+      if (opts.only !== undefined && J[C.from[i]] && J[C.from[i]].kind === "origin" && C.tripMeta[tk].r !== opts.only) continue;
       T[tk] = i;
     }
     const to = C.to[i], arr = C.arr[i];
@@ -316,16 +327,57 @@ export function search(net, q) {
       add(j);
     }
   }
+  // alternatives : une recherche par ligne accessible au départ, pour proposer aussi les lignes plus lentes
+  // (ex. voiture + C201 aux 4 Vents quand voiture + C26 ou Rhônexpress est plus rapide)
+  if (origin.length && dest.length) {
+    const byRoute = new Map();
+    for (const acc of origin)
+      for (const r of net._stopRoutes[acc[0]] || []) {
+        if (q.routeOk && !q.routeOk(r)) continue;
+        const cur = byRoute.get(r);
+        if (!cur) byRoute.set(r, { t: acc[1], stops: [acc] }); else { cur.stops.push(acc); cur.t = Math.min(cur.t, acc[1]); }
+      }
+    const have = new Set([...found.values()].map((j) => (j.legs.find((l) => l.kind === "ride") || {}).route));
+    const routes = [...byRoute.entries()].filter(([r]) => !have.has(r)).sort((x, y) => x[1].t - y[1].t).slice(0, 15);
+    const starts = [];
+    if (q.arriveBy) for (let t = q.time - 240; t <= q.time; t += 30) starts.push(t);
+    else for (let t = q.time; t <= q.time + 180; t += 30) starts.push(t);
+    for (const [r, { stops }] of routes) {
+      for (const t0 of starts) {
+        const j = csa(net, C, stops, dest, t0, { horizon: 300, maxWalk, only: r });
+        if (!j) continue;
+        if (q.arriveBy && j.arrive > q.time) continue;
+        if (!q.arriveBy && j.leave < q.time) continue;
+        j.noCar = !j.legs.some((l) => l.kind === "car");
+        j.alt = true;
+        add(j);
+      }
+    }
+  }
   add(walkOnly(q.o, q.d, q.time, q.arriveBy, maxWalk));
   if (car !== "none") add(carOnly(q.o, q.d, q.time, q.arriveBy));
   let list = [...found.values()];
   // retire les solutions dominées (partir plus tôt ET arriver plus tard qu'une autre)
   // (une solution sans voiture n'est écartée que par une autre solution sans voiture)
+  // (une alternative n'est écartée que par une solution qui commence par la même ligne)
+  const firstLine = (j) => (j.legs.find((l) => l.kind === "ride") || {}).route;
   list = list.filter((a) => a.carOnly || !list.some((b) => b !== a && !b.carOnly && (!a.noCar || b.noCar) &&
+    (!a.alt || firstLine(a) === firstLine(b)) &&
     b.leave >= a.leave && b.arrive <= a.arrive &&
     (b.leave > a.leave || b.arrive < a.arrive) && b.transfers <= a.transfers));
   if (q.sort === "duration") list.sort((a, b) => a.duration - b.duration || a.arrive - b.arrive);
   else list.sort((a, b) => a.arrive - b.arrive || a.duration - b.duration);
+  if (list.length) {
+    const firstArr = Math.min(...list.filter((j) => !j.alt).map((j) => j.arrive), Infinity);
+    list = list.filter((j) => !j.alt || j.arrive <= firstArr + 120);
+  }
+  // au plus 3 solutions par enchaînement de lignes, pour laisser de la place aux autres lignes
+  const perSig = new Map();
+  list = list.filter((j) => {
+    const k = j.legs.map((l) => (l.kind === "ride" ? l.route : l.kind === "car" ? "c" : "")).filter(Boolean).join(">");
+    perSig.set(k, (perSig.get(k) || 0) + 1);
+    return perSig.get(k) <= 3;
+  });
   return { journeys: list.slice(0, 12), originStops: origin.length, destStops: dest.length, connections: C.n };
 }
 
