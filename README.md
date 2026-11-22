@@ -35,8 +35,9 @@ Horaires : fichiers GTFS publiés sur [transport.data.gouv.fr](https://transport
 - TCL, réseau complet (métro, tram, bus, Junior Direct), pour les correspondances dans la métropole de Lyon ;
 - M réso / TAG, réseau complet de Grenoble, pour les correspondances à l'arrivée ;
 - Rhônexpress ;
-- Cars Région Express et Cars Région Isère ;
-- SNCF (TER, TGV) ;
+- Cars Région Express, Cars Région Isère (lignes T et X : Crémieu, Saint-Jean-de-Bournay, La Côte-Saint-André, Vienne, Voiron–Chambéry…) et Cars Région Ain (A71 Montluel, A32 et A11 Meximieux…) ;
+- Synchro Bus (Chambéry), L'va (Vienne), Colibri (Miribel) et TICO (Montluel) ;
+- SNCF (TER, TGV), y compris les trains de Chambéry, Vienne, Montluel, Miribel et Meximieux ;
 - FlixBus et BlaBlaCar Bus.
 
 Les lignes retenues sont celles du tableau « Transports en commun – Satolas-et-Bonce et alentours ». Elles sont définies dans [`config/lines.json`](config/lines.json) : pour ajouter une ligne, ajoutez son numéro dans `routes`.

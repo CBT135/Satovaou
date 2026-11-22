@@ -287,6 +287,7 @@
       "label": "Cars Région Isère",
       "datasets": {
         "slugs": [
+          "reseau-interurbain-cars-region-isere-38-1",
           "reseau-cars-region-isere-38"
         ],
         "title_keywords": [
@@ -322,7 +323,32 @@
           "VER07",
           "VER09",
           "SQF01",
-          "IDB05"
+          "IDB05",
+          "T10",
+          "T11",
+          "T14",
+          "T15",
+          "T19",
+          "T25",
+          "T26",
+          "T27",
+          "T30",
+          "T31",
+          "T34",
+          "T35",
+          "T36",
+          "T37",
+          "T41",
+          "T42",
+          "T50",
+          "T51",
+          "T52",
+          "T55",
+          "T56",
+          "T58",
+          "T62",
+          "T83",
+          "X08"
         ],
         "anchors": [
           "satolas"
@@ -330,17 +356,112 @@
         "km": 2.5
       },
       "school": {
-        "not_routes": [
-          "X04",
-          "X05",
-          "X06",
-          "X07",
-          "T16",
-          "T17",
-          "T20"
+        "name_regex": "^(P[A-Z]{4}|[A-Z]{3}\\d\\d)$"
+      },
+      "fare": "cars_region",
+      "_doc": "Lignes régulières T.. et X.. (dont Crémieu T19, Saint-Jean-de-Bournay T34/T36, La Côte-Saint-André T31/T35/T51, Vienne T35/T37/T52, Voiron–Chambéry T41, Chambéry–Grenoble T83) + lignes scolaires passant à Satolas. Codes « ABC12 » et « Pxxxx » : services scolaires."
+    },
+    {
+      "key": "cra01",
+      "label": "Cars Région Ain",
+      "datasets": {
+        "slugs": [
+          "reseau-interurbain-cars-region-ain-01"
+        ],
+        "title_keywords": [
+          [
+            "ain (01)"
+          ]
         ]
       },
-      "fare": "cars_region"
+      "select": {
+        "mode": "routes",
+        "routes": [
+          "A71",
+          "A32",
+          "A11",
+          "A29",
+          "A03",
+          "A10",
+          "A49",
+          "A93"
+        ]
+      },
+      "fare": "cars_region",
+      "_doc": "A71 Lyon–Montluel–Dagneux, A32 Lyon–Bourg (Meximieux), A11/A29 Meximieux, A03/A10/A49 Lagnieu–Ambérieu, A93 Belley–Morestel."
+    },
+    {
+      "key": "synchro",
+      "label": "Synchro Bus (Chambéry)",
+      "datasets": {
+        "slugs": [
+          "arrets-et-horaires-theoriques-bus-temps-reel"
+        ],
+        "title_keywords": [
+          [
+            "synchro bus"
+          ]
+        ]
+      },
+      "select": {
+        "mode": "all"
+      },
+      "fare": "synchro"
+    },
+    {
+      "key": "lva",
+      "label": "L'va (Vienne)",
+      "datasets": {
+        "slugs": [
+          "reseau-lva"
+        ],
+        "title_keywords": [
+          [
+            "l'va"
+          ]
+        ]
+      },
+      "select": {
+        "mode": "all"
+      },
+      "fare": "lva"
+    },
+    {
+      "key": "colibri",
+      "label": "Colibri (Miribel)",
+      "datasets": {
+        "slugs": [
+          "colibri-horaires-theoriques-et-temps-reel-du-reseau-de-transport-urbain-de-la-ccmp"
+        ],
+        "title_keywords": [
+          [
+            "colibri",
+            "miribel"
+          ]
+        ]
+      },
+      "select": {
+        "mode": "all"
+      },
+      "fare": "colibri"
+    },
+    {
+      "key": "tico",
+      "label": "TICO (Montluel)",
+      "datasets": {
+        "slugs": [
+          "tico-bus-horaires-theoriques-du-reseau-de-transport-urbain-tico"
+        ],
+        "title_keywords": [
+          [
+            "tico"
+          ]
+        ]
+      },
+      "select": {
+        "mode": "all"
+      },
+      "fare": "tico"
     },
     {
       "key": "sncf",
@@ -373,11 +494,21 @@
           "st-quentin-fallavier",
           "st quentin fallavier",
           "saint quentin fallavier",
-          "saint-exupery tgv"
+          "saint-exupery tgv",
+          "chambery",
+          "vienne",
+          "montluel",
+          "miribel",
+          "meximieux",
+          "bourgoin",
+          "saint-andre-le-gaz",
+          "lyon part dieu",
+          "lyon-part-dieu",
+          "grenoble"
         ]
       },
       "fare": "sncf",
-      "_doc": "Tous les trains (TER, TGV) qui s'arrêtent à Saint-Quentin-Fallavier, La Verpillière ou Lyon Saint-Exupéry TGV, repérés par position et par nom de gare."
+      "_doc": "Trains (TER, TGV) qui s'arrêtent à Saint-Quentin-Fallavier, La Verpillière, Saint-Exupéry TGV, Bourgoin, Saint-André-le-Gaz, Lyon Part-Dieu, Grenoble, Chambéry, Vienne, Montluel, Miribel ou Meximieux (coupés au rayon de 100 km)."
     },
     {
       "key": "flixbus",

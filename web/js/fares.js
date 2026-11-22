@@ -55,6 +55,18 @@ function networkFare(key, legs, ctx) {
         week: null, month: young ? { p: 20, n: "abonnement jeune (estimation)" } : { p: 60, n: "abonnement mensuel (estimation)" },
       };
     }
+    case "synchro":   // Chambéry : 1 voyage 1,40 € (10 voyages 12 €), mensuel 48,50 € / 24,50 € < 26 ans (grille 2025)
+    case "lva":       // Vienne : ticket Mobi 1,20 € 1 h ; mensuel non relevé (estimation)
+    case "colibri":   // Miribel : ticket 1 € ; mensuel non relevé (estimation)
+    case "tico": {    // Montluel : ticket 1 € ; abonnement 16 € / 10 € (< 26 ans et > 64 ans)
+      const T = { synchro: [1.4, 1.2, 48.5, 24.5, "Synchro Bus"], lva: [1.2, null, 30, 15, "L'va (mensuel estimé)"],
+        colibri: [1.0, null, 20, 12, "Colibri (mensuel estimé)"], tico: [1.0, null, 16, 10, "TICO"] }[key];
+      if (age < 4) return { occ: 0, week: { p: 0, n: "gratuit" }, month: { p: 0, n: "gratuit" }, note: "gratuit < 4 ans" };
+      let tickets = 0, last = -Infinity;
+      for (const l of legs) if (l.dep - last > 60) { tickets++; last = l.dep; }
+      return { occ: T[0] * tickets, note: `${T[4]} : ticket 1 h`, carnet: T[1] ? T[1] / T[0] : undefined, week: null,
+        month: age < 26 ? { p: T[3], n: "abonnement mensuel jeune" } : { p: T[2], n: "abonnement mensuel" } };
+    }
     case "rhonexpress": {
       const occ = age < 12 ? 0 : age <= 25 ? 10.7 : 16.3;
       return { occ, note: age < 12 ? "gratuit < 12 ans" : age <= 25 ? "tarif 12–25 ans" : "achat web (17,40 € en borne)", week: null, month: null };
