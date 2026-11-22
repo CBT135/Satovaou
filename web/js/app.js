@@ -228,14 +228,34 @@ function pointLL(x) {
   return [s[1], s[2]];
 }
 
+/* Itinéraire routier IGN (Géoplateforme) pour les étapes en voiture, mis en cache */
+const carRoutes = new Map();
+function carRoute(a, b) {
+  const key = `${a[0].toFixed(5)},${a[1].toFixed(5)}|${b[0].toFixed(5)},${b[1].toFixed(5)}`;
+  if (!carRoutes.has(key)) {
+    const url = `https://data.geopf.fr/navigation/itineraire?resource=bdtopo-osrm&profile=car&optimization=fastest` +
+      `&start=${a[1]},${a[0]}&end=${b[1]},${b[0]}&geometryFormat=geojson&distanceUnit=kilometer&timeUnit=minute&getSteps=false`;
+    carRoutes.set(key, fetch(url).then((r) => (r.ok ? r.json() : Promise.reject(new Error(r.status))))
+      .then((d) => ({ coords: d.geometry.coordinates.map(([lo, la]) => [la, lo]), km: d.distance, min: d.duration }))
+      .catch(() => { carRoutes.delete(key); return null; }));
+  }
+  return carRoutes.get(key);
+}
+
 function journeyLayer(j, strong) {
   const g = L.featureGroup();
   for (const l of j.legs) {
     if (l.kind === "walk") {
       L.polyline([pointLL(l.from), pointLL(l.to)], { color: "#333", weight: strong ? 4 : 3, dashArray: "4 7", opacity: 0.85 }).addTo(g);
     } else if (l.kind === "car") {
-      L.polyline([pointLL(l.from), pointLL(l.to)], { color: "#fff", weight: strong ? 8 : 6, opacity: 0.9 }).addTo(g);
-      L.polyline([pointLL(l.from), pointLL(l.to)], { color: "#555", weight: strong ? 5 : 4, dashArray: "12 8", opacity: 0.95 }).addTo(g);
+      const a = pointLL(l.from), b = pointLL(l.to);
+      const tmp = L.polyline([a, b], { color: "#555", weight: 2, dashArray: "2 8", opacity: 0.6 }).addTo(g);
+      carRoute(a, b).then((res) => {
+        if (!res) return;
+        g.removeLayer(tmp);
+        L.polyline(res.coords, { color: "#fff", weight: strong ? 9 : 7, opacity: 0.9 }).addTo(g);
+        L.polyline(res.coords, { color: "#3a3a3a", weight: strong ? 5 : 4, opacity: 0.95 }).addTo(g);
+      });
     } else {
       const p = state.net.patterns[state.net.trips[l.trip][0]];
       const pts = p.st.slice(l.fromPos, l.toPos + 1).map((s) => [state.net.stops[s][1], state.net.stops[s][2]]);
@@ -259,8 +279,24 @@ function select(i) {
   if (state.hoverLayer) { map.removeLayer(state.hoverLayer); state.hoverLayer = null; }
   document.querySelectorAll(".card").forEach((c) => c.classList.toggle("selected", +c.dataset.i === i));
   if (i >= 0) {
-    state.selLayer = journeyLayer(state.results[i], true).addTo(map);
+    const j = state.results[i];
+    state.selLayer = journeyLayer(j, true).addTo(map);
     map.fitBounds(state.selLayer.getBounds().pad(0.15), { maxZoom: 15 });
+    const card = document.querySelector(`.card[data-i="${i}"]`);
+    j.legs.forEach((l, k) => {
+      if (l.kind !== "car") return;
+      carRoute(pointLL(l.from), pointLL(l.to)).then((res) => {
+        const el = card && card.querySelector(`[data-car="${k}"] .ign`);
+        if (!el) return;
+        if (!res) { el.textContent = "Itinéraire IGN indisponible (tracé à vol d'oiseau)."; return; }
+        const drive = Math.round(res.min);
+        const planned = l.min - (l.to !== "dest" ? 5 : 0); // hors stationnement
+        const late = drive - planned;
+        el.innerHTML = `Itinéraire IGN : ${res.km.toFixed(1).replace(".", ",")} km, ${drive} min de conduite hors trafic` +
+          (late > 3 && l.to !== "dest" ? ` <b class="warnline">⚠ ${late} min de plus que prévu : partez plus tôt pour ne pas rater la correspondance</b>` : "");
+        if (state.selLayer) map.fitBounds(state.selLayer.getBounds().pad(0.15), { maxZoom: 15 });
+      });
+    });
   }
 }
 
@@ -288,7 +324,7 @@ function cardHtml(j, i, date) {
   for (const l of j.legs) {
     if (prevArr !== null && l.dep - prevArr >= 2 && l.kind === "ride") legs += `<li><span class="sub">⏳ Attente ${fmtDur(l.dep - prevArr)}</span></li>`;
     if (l.kind === "car") {
-      legs += `<li class="carleg"><span class="t">🚗 Voiture ${l.min} min</span> <span class="sub">(${(l.m / 1000).toFixed(1).replace(".", ",")} km${l.to !== "dest" ? ", stationnement compris" : ""})</span><br><span class="sub">${esc(stopName(l.from))} → ${esc(stopName(l.to))}</span></li>`;
+      legs += `<li class="carleg" data-car="${j.legs.indexOf(l)}"><span class="t">🚗 Voiture ${l.min} min</span> <span class="sub">(${(l.m / 1000).toFixed(1).replace(".", ",")} km${l.to !== "dest" ? ", stationnement compris" : ""})</span><br><span class="sub">${esc(stopName(l.from))} → ${esc(stopName(l.to))}</span><br><span class="sub ign">Itinéraire IGN en cours…</span></li>`;
       prevArr = l.arr;
       continue;
     }
