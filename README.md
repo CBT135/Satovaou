@@ -54,7 +54,7 @@ Le résumé du workflow indique, réseau par réseau, les lignes trouvées et ce
 
 1. Dans le dépôt : **Settings > Pages > Build and deployment > Source : GitHub Actions**.
 2. Onglet **Actions > Déploiement > Run workflow**.
-3. Le site est alors en ligne à l'adresse `https://cbt135.github.io/satovaou/`.
+3. Le site est alors en ligne à l'adresse `https://cbt135.github.io/Satovaou/`.
 
 ## Développement local
 
