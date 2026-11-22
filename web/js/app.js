@@ -140,8 +140,15 @@ function badge(ri) {
 }
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
+const isRx = (r) => /rh[oô]nexpress/i.test(`${r.a} ${r.s} ${r.l}`);
 function routeEnabled(ri, date) {
   const r = state.net.routes[ri];
+  // Rhônexpress : piloté par sa case, quel que soit le jeu de données qui le contient (TCL ou Rhônexpress)
+  if (isRx(r)) {
+    if (state.rxFeed < 0) return !!state.feedOn[r.f];
+    if (r.f === state.rxFeed && state.rxElsewhere) return false; // horaires de principe inutiles : le vrai horaire est chargé
+    return !!state.feedOn[state.rxFeed];
+  }
   if (!state.feedOn[r.f]) return false;
   if (r.sc) return state.youth && !noSchoolReason(date, state.net.holidays);
   return true;
@@ -376,6 +383,28 @@ function updateSchoolNote() {
   else note.hidden = true;
 }
 
+/** Bouton jeunes désactivé : signale les lignes scolaires qui desserviraient le trajet. */
+function schoolHint(date, time, res) {
+  const box = $("#school-hint");
+  box.hidden = true;
+  if (state.youth || noSchoolReason(date, state.net.holidays)) return;
+  setTimeout(() => {
+    const alt = search(state.net, {
+      o: state.from, d: state.to, date, time, arriveBy: $("#mode").value === "arrive", sort: $("#sort").value,
+      car: $("#car").value, maxWalk: +$("#maxwalk").value,
+      cacheKey: `${date}|true|${Object.entries(state.feedOn).filter(([, v]) => v).map(([k]) => k).join(",")}`,
+      routeOk: (ri) => { const r = state.net.routes[ri]; return r.sc ? routeEnabled(ri, date) || state.feedOn[r.f] : routeEnabled(ri, date); },
+    });
+    const names = new Set();
+    for (const j of alt.journeys) for (const l of j.legs) if (l.kind === "ride" && state.net.routes[l.route].sc) names.add(lineLabel(l.route));
+    if (!names.size) return;
+    box.hidden = false;
+    box.innerHTML = `🎒 Des lignes scolaires desservent ce trajet (${[...names].slice(0, 6).map(esc).join(", ")}). ` +
+      `<button type="button" id="hint-youth">Afficher avec « Réservé aux jeunes »</button>`;
+    $("#hint-youth").addEventListener("click", () => $("#youth").click());
+  }, 30);
+}
+
 let searchTimer = null;
 function autoSearch() { clearTimeout(searchTimer); if (state.from && state.to && state.net) searchTimer = setTimeout(runSearch, 150); }
 
@@ -415,6 +444,7 @@ function runSearch() {
     list.innerHTML = res.journeys.map((j, i) => cardHtml(j, i, date)).join("");
     if (res.journeys.length) select(0);
     saveHash();
+    schoolHint(date, time, res);
   }, 20);
 }
 
@@ -444,6 +474,15 @@ function initForm() {
     setPoint(which, { ...PRESETS[b.dataset.preset] });
     autoSearch();
   }));
+  $("#now").addEventListener("click", () => {
+    const d = new Date();
+    $("#date").value = isoDate(d);
+    $("#time").value = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+    $("#mode").value = "depart";
+    updateSchoolNote(); drawStops(); saveHash();
+    if (state.from && state.to) runSearch();
+    else $("#status").textContent = "Choisissez un départ et une arrivée (clic sur la carte ou adresse).";
+  });
   $("#youth").addEventListener("click", () => {
     state.youth = !state.youth;
     $("#youth").setAttribute("aria-pressed", String(state.youth));
@@ -510,6 +549,8 @@ async function loadData() {
     const net = await r.json();
     state.net = prepare(net);
     net.feeds.forEach((f, i) => { state.feedOn[i] = f.status === "ok"; });
+    state.rxFeed = net.feeds.findIndex((f) => f.key === "rhonexpress");
+    state.rxElsewhere = net.routes.some((r) => isRx(r) && r.f !== state.rxFeed);
     renderFeeds();
     drawStops();
     updateSchoolNote();

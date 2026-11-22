@@ -121,3 +121,7 @@ footer a, .small a { color: var(--blue); }
 .carchip { color: #333; font-weight: 600; }
 .legs li.carleg { border-left: 3px dashed #555; }
 .warnline { color: var(--warn); font-weight: 600; }
+
+.school-hint { margin: .4rem 0; padding: .5rem .7rem; border-radius: 8px; background: #fff6d6; border: 1px solid #e8cf73; font-size: .9rem; }
+.school-hint button { margin-left: .3rem; }
+#now { white-space: nowrap; }
