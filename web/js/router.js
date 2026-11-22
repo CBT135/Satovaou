@@ -7,6 +7,7 @@ export const TRANSFER_MIN = 2;        // marge de correspondance
 export const FOOTPATH_M = 450;        // correspondance à pied entre arrêts proches
 export const MAX_WALK_MIN = 20;       // marche max par étape (réglable dans l'interface)
 export const CAR_MAX_M = 30000;       // voiture : rayon de recherche des parkings (gares, trams, cars express)
+export const CAR_LOCAL_M = 8000;     // voiture : tout arrêt de bus à moins de 8 km (rabattement local)
 export const CAR_STOPS = 40;          // voiture : nombre max d'arrêts candidats
 
 export function distM(lat1, lon1, lat2, lon2) {
@@ -106,19 +107,22 @@ export function accessStops(net, lat, lon, opts = {}) {
     }
   if (opts.car) {
     const cand = [];
+    const local = [];
     for (const j of nearbyIdx(net, lat, lon, CAR_MAX_M)) {
-      if (!net._carOk[j]) continue;
       const d = distM(lat, lon, net.stops[j][1], net.stops[j][2]);
+      const isLocal = d <= CAR_LOCAL_M && !net._carOk[j];
+      if (!net._carOk[j] && !isLocal) continue;
       // se garer seulement « de son côté » : pas à un arrêt plus proche de l'autre extrémité du trajet
       if (opts.other) {
         const dOther = distM(opts.other.lat, opts.other.lon, net.stops[j][1], net.stops[j][2]);
         const dTot = distM(lat, lon, opts.other.lat, opts.other.lon);
         if (d > dTot * 0.6 || dOther < d) continue;
       }
-      cand.push([j, carMin(d) + PARK_MIN, Math.round(d * DETOUR), "car"]);
+      (isLocal ? local : cand).push([j, carMin(d) + PARK_MIN, Math.round(d * DETOUR), "car"]);
     }
     cand.sort((a, b) => a[1] - b[1]);
-    for (const c of cand.slice(0, CAR_STOPS)) {
+    local.sort((a, b) => a[1] - b[1]);
+    for (const c of [...cand.slice(0, CAR_STOPS), ...local.slice(0, 30)]) {
       const cur = best.get(c[0]);
       if (!cur || cur[1] > c[1] + 3) best.set(c[0], c); // à pied si presque aussi rapide
     }
@@ -290,19 +294,25 @@ export function search(net, q) {
   } else C = buildDay(net, q.date, q.routeOk);
   const maxWalk = q.maxWalk ?? MAX_WALK_MIN;
   const car = q.car || "none";
-  const origin = accessStops(net, q.o.lat, q.o.lon, { maxWalk, car: car === "start" || car === "both", other: q.d });
-  const dest = accessStops(net, q.d.lat, q.d.lon, { maxWalk, car: car === "end" || car === "both", other: q.o });
+  const runs = [[car === "start" || car === "both", car === "end" || car === "both"]];
+  if (car !== "none") runs.push([false, false]); // garde aussi les solutions sans voiture
   const found = new Map();
   const add = (j) => { if (j && (!found.has(j.sig) || found.get(j.sig).duration > j.duration)) found.set(j.sig, j); };
-  if (origin.length && dest.length) {
+  let origin = [], dest = [];
+  for (const [co, cd] of runs) {
+    const ori = accessStops(net, q.o.lat, q.o.lon, { maxWalk, car: co, other: q.d });
+    const des = accessStops(net, q.d.lat, q.d.lon, { maxWalk, car: cd, other: q.o });
+    if (!origin.length) { origin = ori; dest = des; }
+    if (!ori.length || !des.length) continue;
     const starts = [];
     if (q.arriveBy) for (let t = q.time - 300; t <= q.time; t += 10) starts.push(t);
     else for (let t = q.time; t <= q.time + 240; t += 10) starts.push(t);
     for (const t0 of starts) {
-      const j = csa(net, C, origin, dest, t0, { horizon: 400, maxWalk });
+      const j = csa(net, C, ori, des, t0, { horizon: 400, maxWalk });
       if (!j) continue;
       if (q.arriveBy && j.arrive > q.time) continue;
       if (!q.arriveBy && j.leave < q.time) continue;
+      j.noCar = !j.legs.some((l) => l.kind === "car");
       add(j);
     }
   }
@@ -310,11 +320,13 @@ export function search(net, q) {
   if (car !== "none") add(carOnly(q.o, q.d, q.time, q.arriveBy));
   let list = [...found.values()];
   // retire les solutions dominées (partir plus tôt ET arriver plus tard qu'une autre)
-  list = list.filter((a) => a.carOnly || !list.some((b) => b !== a && !b.carOnly && b.leave >= a.leave && b.arrive <= a.arrive &&
+  // (une solution sans voiture n'est écartée que par une autre solution sans voiture)
+  list = list.filter((a) => a.carOnly || !list.some((b) => b !== a && !b.carOnly && (!a.noCar || b.noCar) &&
+    b.leave >= a.leave && b.arrive <= a.arrive &&
     (b.leave > a.leave || b.arrive < a.arrive) && b.transfers <= a.transfers));
   if (q.sort === "duration") list.sort((a, b) => a.duration - b.duration || a.arrive - b.arrive);
   else list.sort((a, b) => a.arrive - b.arrive || a.duration - b.duration);
-  return { journeys: list.slice(0, 10), originStops: origin.length, destStops: dest.length, connections: C.n };
+  return { journeys: list.slice(0, 12), originStops: origin.length, destStops: dest.length, connections: C.n };
 }
 
 export function fmtTime(min) {
