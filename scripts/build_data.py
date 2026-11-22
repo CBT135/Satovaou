@@ -574,6 +574,11 @@ def main():
             except Exception as e:  # noqa: BLE001
                 log(f"  recherche impossible : {e}")
                 dss = []
+            if not dss and feed.get("urls"):
+                dss = [{"slug": None, "title": feed["label"], "resources": [{"format": "GTFS", "url": u} for u in feed["urls"]]}]
+            elif dss and feed.get("urls"):
+                for ds in dss:  # URL directe en dernier recours
+                    ds.setdefault("resources", []).extend({"format": "GTFS", "url": u, "is_available": False} for u in feed["urls"])
             if not dss:
                 log("  aucun jeu de données trouvé")
                 if feed.get("supplement", {}).get("only_if_no_gtfs"):

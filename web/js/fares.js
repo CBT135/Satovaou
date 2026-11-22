@@ -44,6 +44,17 @@ function networkFare(key, legs, ctx) {
         week: null, month: age < 26 ? { p: 11.5, n: "abonnement mensuel réduit (à vérifier)" } : { p: 30, n: "abonnement mensuel" },
       };
     }
+    case "tag": {
+      // M réso (Grenoble) : tarifs non relevés précisément, estimation à vérifier sur reso-m.fr
+      if (age < 5) return { occ: 0, week: { p: 0, n: "gratuit" }, month: { p: 0, n: "gratuit" }, note: "gratuit < 5 ans" };
+      let tickets = 0, last = -Infinity;
+      for (const l of legs) if (l.dep - last > 60) { tickets++; last = l.dep; }
+      const young = age <= 25;
+      return {
+        occ: 2.0 * tickets, note: "ticket 1 h (estimation, à vérifier)", carnet: 0.85,
+        week: null, month: young ? { p: 20, n: "abonnement jeune (estimation)" } : { p: 60, n: "abonnement mensuel (estimation)" },
+      };
+    }
     case "rhonexpress": {
       const occ = age < 12 ? 0 : age <= 25 ? 10.7 : 16.3;
       return { occ, note: age < 12 ? "gratuit < 12 ans" : age <= 25 ? "tarif 12–25 ans" : "achat web (17,40 € en borne)", week: null, month: null };

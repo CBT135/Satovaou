@@ -138,7 +138,7 @@
     },
     {
       "key": "tcl",
-      "label": "TCL",
+      "label": "TCL (Lyon)",
       "datasets": {
         "slugs": [],
         "title_keywords": [
@@ -151,29 +151,13 @@
         ]
       },
       "select": {
-        "mode": "routes_or_near",
-        "routes": [
-          "T3",
-          "C200",
-          "248",
-          "47",
-          "1E",
-          "67",
-          "232",
-          "32",
-          "RX",
-          "RHONEXPRESS"
-        ],
-        "anchors": [
-          "colombier"
-        ],
-        "km": 1.5
+        "mode": "all"
       },
       "fare": "tcl",
       "school": {
         "name_regex": "^(JD|[3-9]\\d\\d$)"
       },
-      "_doc": "Lignes du tableau + toute ligne passant à moins de 1,5 km de Colombier-Saugnieu (la 1E a changé de numéro le 31/08/2026). Junior Direct : codes JD ou 300–999. Les Junior Direct (JD…) sont dans ce même GTFS."
+      "_doc": "Réseau TCL complet (métro, tram, bus) pour les correspondances dans la métropole de Lyon. Junior Direct (JD…) dans ce même GTFS = scolaires."
     },
     {
       "key": "rhonexpress",
@@ -266,6 +250,37 @@
           }
         }
       }
+    },
+    {
+      "key": "tag",
+      "label": "M réso / TAG (Grenoble)",
+      "_doc": "Réseau urbain de Grenoble complet, pour les correspondances à l'arrivée à Grenoble.",
+      "datasets": {
+        "slugs": [
+          "horaires-theoriques-du-reseau-tag"
+        ],
+        "title_keywords": [
+          [
+            "réseau urbain tag"
+          ],
+          [
+            "reseau urbain tag"
+          ],
+          [
+            "m réso"
+          ]
+        ]
+      },
+      "urls": [
+        "https://data.mobilites-m.fr/api/gtfs/SEM"
+      ],
+      "select": {
+        "mode": "all"
+      },
+      "school": {
+        "name_regex": "(?i)^(sco|s\\d)"
+      },
+      "fare": "tag"
     },
     {
       "key": "cri38",

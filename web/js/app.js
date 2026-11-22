@@ -5,6 +5,7 @@ import { noSchoolReason, isoDate } from "./calendar.js";
 /* global L */
 const $ = (s) => document.querySelector(s);
 const FEED_COLORS = {
+  tag: "#3376b8",
   ruban: "#e5007d", tcl: "#e2001a", tcl_scolaire: "#f39200", rhonexpress: "#c8102e", cre: "#00843d",
   cri38: "#2e8b57", sncf: "#0c4da2", flixbus: "#5cb800", blablacar: "#00a3e0",
 };
@@ -348,6 +349,7 @@ function runSearch() {
     const res = search(state.net, {
       o: state.from, d: state.to, date, time, arriveBy: $("#mode").value === "arrive", sort: $("#sort").value,
       car: $("#car").value, maxWalk: +$("#maxwalk").value,
+      cacheKey: `${date}|${state.youth}|${Object.entries(state.feedOn).filter(([, v]) => v).map(([k]) => k).join(",")}`,
       routeOk: (ri) => routeEnabled(ri, date),
     });
     state.results = res.journeys;

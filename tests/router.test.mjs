@@ -71,4 +71,10 @@ console.log("  coût voiture+TC :", fc.occ, fc.lines.map((l) => l.label).join(" 
 ok(fc.lines.some((l) => l.label.startsWith("Voiture")), "coût voiture compté");
 r = search(net, { o: satolas, d: partDieu, date: lundi, time: 6 * 60, car: "none" });
 ok(!r.journeys.some((j) => j.legs.some((l) => l.kind === "car")), "sans voiture : aucune étape en voiture");
+// correspondance métro D + métro A (Grange Blanche -> 10 cours de Verdun Rambaud)
+const gb = { lat: 45.7428, lon: 4.8792 }, rambaud = { lat: 45.7496, lon: 4.8262 };
+r = search(net, { o: gb, d: rambaud, date: lundi, time: 9 * 60, maxWalk: 20 });
+console.log("Grange Blanche → cours de Verdun Rambaud"); show(r);
+ok(r.journeys.length && r.journeys[0].legs.filter((l) => l.kind === "ride").map((l) => net.routes[l.route].s).join("+") === "D+A", "métro D puis métro A");
+ok(allWalk(r, 20), "pas de longue marche dans Lyon");
 process.exit(fails ? 1 : 0);

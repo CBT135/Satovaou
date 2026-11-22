@@ -272,7 +272,16 @@ export function carOnly(o, d, t, arriveBy) {
  * q = {o:{lat,lon}, d:{lat,lon}, date:'AAAA-MM-JJ', time: minutes, arriveBy: bool, routeOk(fn), stopOk(fn)}
  */
 export function search(net, q) {
-  const C = buildDay(net, q.date, q.routeOk);
+  let C;
+  if (q.cacheKey) {
+    net._dayCache = net._dayCache || new Map();
+    C = net._dayCache.get(q.cacheKey);
+    if (!C) {
+      C = buildDay(net, q.date, q.routeOk);
+      if (net._dayCache.size > 6) net._dayCache.clear();
+      net._dayCache.set(q.cacheKey, C);
+    }
+  } else C = buildDay(net, q.date, q.routeOk);
   const maxWalk = q.maxWalk ?? MAX_WALK_MIN;
   const car = q.car || "none";
   const origin = accessStops(net, q.o.lat, q.o.lon, { maxWalk, car: car === "start" || car === "both" });

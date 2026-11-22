@@ -32,7 +32,8 @@ Appli web qui fonctionne sur PC, Mac et téléphone. Sur téléphone, on peut l'
 Horaires : fichiers GTFS publiés sur [transport.data.gouv.fr](https://transport.data.gouv.fr) (licence ODbL) pour :
 
 - Ruban ;
-- TCL et TCL scolaire ;
+- TCL, réseau complet (métro, tram, bus, Junior Direct), pour les correspondances dans la métropole de Lyon ;
+- M réso / TAG, réseau complet de Grenoble, pour les correspondances à l'arrivée ;
 - Rhônexpress ;
 - Cars Région Express et Cars Région Isère ;
 - SNCF (TER, TGV) ;
